@@ -1,0 +1,365 @@
+# InAppNotification – English translations
+# Copyright (C) 2026 GLPI Plugin
+# This file is distributed under the same license as the InAppNotification package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: InAppNotification 1.2.3\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-26 00:00+0000\n"
+"PO-Revision-Date: 2026-02-26 00:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: English\n"
+"Language: en_GB\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "InAppNotification"
+msgstr "InAppNotification"
+
+msgid "InAppNotification (In-app)"
+msgstr "InAppNotification (In-app)"
+
+msgid "InAppNotification settings"
+msgstr "InAppNotification settings"
+
+msgid "Capture sources"
+msgstr "Capture sources"
+
+msgid "Choose which source families are persisted as in-app notifications."
+msgstr "Choose which source families are persisted as in-app notifications."
+
+msgid "Saved searches"
+msgstr "Saved searches"
+
+msgid "Tickets"
+msgstr "Tickets"
+
+msgid "Projects"
+msgstr "Projects"
+
+msgid "Reminders"
+msgstr "Reminders"
+
+msgid "SLA / SLM"
+msgstr "SLA / SLM"
+
+msgid "Scheduled tasks"
+msgstr "Scheduled tasks"
+
+msgid "Other alert sources"
+msgstr "Other alert sources"
+
+msgid "Ticket filter"
+msgstr "Ticket filter"
+
+msgid "Optional ticket-specific rule for captured ticket alerts."
+msgstr "Optional ticket-specific rule for captured ticket alerts."
+
+msgid "Capture only open tickets"
+msgstr "Capture only open tickets"
+
+msgid "Itemtype filters"
+msgstr "Itemtype filters"
+
+msgid "Optional CSV filters by GLPI class/itemtype names."
+msgstr "Optional CSV filters by GLPI class/itemtype names."
+
+msgid "Include only itemtypes (CSV)"
+msgstr "Include only itemtypes (CSV)"
+
+msgid "Exclude itemtypes (CSV)"
+msgstr "Exclude itemtypes (CSV)"
+
+msgid "Search notification"
+msgid_plural "Search notifications"
+msgstr[0] "Search notification"
+msgstr[1] "Search notifications"
+
+msgid "Search notifications"
+msgstr "Search notifications"
+
+msgid "Upcoming notification"
+msgid_plural "Upcoming notifications"
+msgstr[0] "Upcoming notification"
+msgstr[1] "Upcoming notifications"
+
+msgid "Upcoming notification (all users)"
+msgid_plural "Upcoming notifications (all users)"
+msgstr[0] "Upcoming notification (all users)"
+msgstr[1] "Upcoming notifications (all users)"
+
+msgid "Upcoming notifications"
+msgstr "Upcoming notifications"
+
+msgid "Upcoming notifications (all users)"
+msgstr "Upcoming notifications (all users)"
+
+msgid "Back to notifications"
+msgstr "Back to notifications"
+
+msgid "All users upcoming"
+msgstr "All users upcoming"
+
+msgid "Manage snoozed/suppressed"
+msgstr "Manage snoozed/suppressed"
+
+msgid "Muted in-app notifications"
+msgstr "Muted in-app notifications"
+
+msgid "Muted notifications are not available yet. Please run the plugin update from GLPI plugins page."
+msgstr "Muted notifications are not available yet. Please run the plugin update from GLPI plugins page."
+
+msgid "Upcoming notifications storage is not available yet. Please run the plugin update from GLPI plugins page."
+msgstr "Upcoming notifications storage is not available yet. Please run the plugin update from GLPI plugins page."
+
+msgid "Upcoming notifications global storage is not available yet. Please run the plugin update from GLPI plugins page."
+msgstr "Upcoming notifications global storage is not available yet. Please run the plugin update from GLPI plugins page."
+
+msgid "Unsupported action"
+msgstr "Unsupported action"
+
+msgid "Unexpected error"
+msgstr "Unexpected error"
+
+msgid "Source"
+msgstr "Source"
+
+msgid "Suppressed"
+msgstr "Suppressed"
+
+msgid "Snoozed until"
+msgstr "Snoozed until"
+
+msgid "Reactivate"
+msgstr "Reactivate"
+
+msgid "View all users upcoming notifications"
+msgstr "View all users upcoming notifications"
+
+msgid "Notification type"
+msgstr "Notification type"
+
+msgid "Unread notifications"
+msgstr "Unread notifications"
+
+msgid "Unread saved searches"
+msgstr "Unread saved searches"
+
+msgid "Unread tickets"
+msgstr "Unread tickets"
+
+msgid "Unread projects"
+msgstr "Unread projects"
+
+msgid "Unread reminders"
+msgstr "Unread reminders"
+
+msgid "Unread SLA"
+msgstr "Unread SLA"
+
+msgid "Unread scheduled tasks"
+msgstr "Unread scheduled tasks"
+
+msgid "Unread saved search notifications"
+msgstr "Unread saved search notifications"
+
+msgid "Unread ticket notifications"
+msgstr "Unread ticket notifications"
+
+msgid "Unread project notifications"
+msgstr "Unread project notifications"
+
+msgid "Unread reminder notifications"
+msgstr "Unread reminder notifications"
+
+msgid "Unread SLA notifications"
+msgstr "Unread SLA notifications"
+
+msgid "Unread scheduled task notifications"
+msgstr "Unread scheduled task notifications"
+
+msgid "Recipients from notification targets"
+msgstr "Recipients from notification targets"
+
+msgid "Reminder %s before start"
+msgstr "Reminder %s before start"
+
+msgid "Reminder at start time"
+msgstr "Reminder at start time"
+
+msgid "Pending reason: %s"
+msgstr "Pending reason: %s"
+
+msgid "Pending reason reminder"
+msgstr "Pending reason reminder"
+
+msgid "Automatic resolution"
+msgstr "Automatic resolution"
+
+msgid "Pending reason resolution"
+msgstr "Pending reason resolution"
+
+msgid "Scheduled alert"
+msgstr "Scheduled alert"
+
+msgid "%s notification"
+msgstr "%s notification"
+
+msgid "%s alert triggered."
+msgstr "%s alert triggered."
+
+msgid "New followup on ticket #%1$s by %2$s: %3$s"
+msgstr "New followup on ticket #%1$s by %2$s: %3$s"
+
+msgid "New followup on ticket #%1$s by %2$s"
+msgstr "New followup on ticket #%1$s by %2$s"
+
+msgid "Ticket #%s followup"
+msgstr "Ticket #%s followup"
+
+msgid "Ticket followup"
+msgstr "Ticket followup"
+
+msgid "Saved search \"%s\" triggered."
+msgstr "Saved search \"%s\" triggered."
+
+msgid "Saved search"
+msgstr "Saved search"
+
+msgid "Scheduled task"
+msgstr "Scheduled task"
+
+msgid "InAppNotification in-app notifications"
+msgstr "InAppNotification in-app notifications"
+
+msgid "Enable InAppNotification in-app notifications"
+msgstr "Enable InAppNotification in-app notifications"
+
+msgid "InAppNotification is enabled. Use plugin settings to configure filters and sources."
+msgstr "InAppNotification is enabled. Use plugin settings to configure filters and sources."
+
+msgid "Open InAppNotification settings"
+msgstr "Open InAppNotification settings"
+
+msgid "InAppNotification test"
+msgstr "InAppNotification test"
+
+msgid "This is a test in-app notification from InAppNotification."
+msgstr "This is a test in-app notification from InAppNotification."
+
+msgid "All"
+msgstr "All"
+
+msgid "Search"
+msgstr "Search"
+
+msgid "Notification types"
+msgstr "Notification types"
+
+msgid "Loading..."
+msgstr "Loading..."
+
+msgid "No notifications yet"
+msgstr "No notifications yet"
+
+msgid "No notifications in this category"
+msgstr "No notifications in this category"
+
+msgid "Recently read"
+msgstr "Recently read"
+
+msgid "All caught up"
+msgstr "All caught up"
+
+msgid "Sound off"
+msgstr "Sound off"
+
+msgid "Sound on"
+msgstr "Sound on"
+
+msgid "Enable notification sound"
+msgstr "Enable notification sound"
+
+msgid "Mute notification sound"
+msgstr "Mute notification sound"
+
+msgid "Mark all as read"
+msgstr "Mark all as read"
+
+msgid "Select item"
+msgstr "Select item"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "Select all"
+msgstr "Select all"
+
+msgid "Open list"
+msgstr "Open list"
+
+msgid "Muted items"
+msgstr "Muted items"
+
+msgid "Notification"
+msgstr "Notification"
+
+msgid "more notifications"
+msgstr "more notifications"
+
+msgid "Open notification list"
+msgstr "Open notification list"
+
+msgid "Mark as read"
+msgstr "Mark as read"
+
+msgid "Mark as unread"
+msgstr "Mark as unread"
+
+msgid "Other"
+msgstr "Other"
+
+msgid "Project"
+msgstr "Project"
+
+msgid "Reminder"
+msgstr "Reminder"
+
+msgid "SLA"
+msgstr "SLA"
+
+msgid "Snooze 1 day"
+msgstr "Snooze 1 day"
+
+msgid "Suppress"
+msgstr "Suppress"
+
+msgid "Ticket"
+msgstr "Ticket"
+
+msgid "Unread"
+msgstr "Unread"
+
+msgid "unread"
+msgstr "unread"
+
+msgid "Notification Center"
+msgstr "Notification Center"
+
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] "%d day"
+msgstr[1] "%d days"
+
+msgid "%d hour"
+msgid_plural "%d hours"
+msgstr[0] "%d hour"
+msgstr[1] "%d hours"
+
+msgid "%d minute"
+msgid_plural "%d minutes"
+msgstr[0] "%d minute"
+msgstr[1] "%d minutes"
