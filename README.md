@@ -110,7 +110,8 @@ The plugin now includes GLPI-style translation files (.po source + .mo runtime) 
 Notes:
 
 - PHP strings use `__('...','inappnotification')` / `_n(...)`.
-- JavaScript strings use `window.__()` where available.
+- The Vue bell receives already-translated labels from the server (PHP gettext, plugin domain)
+  via a `<meta name="inappnotification:boot">` tag — there is no separate JS translation dictionary.
 
 ## Installation
 
@@ -124,6 +125,25 @@ Steps:
 2. In GLPI, open `Setup > Plugins`, then install and enable the plugin.
 3. Optionally adjust settings at `Setup > Plugins > InAppNotification > Configuration`.
 
+## Frontend (build)
+
+The top-bar bell is a Vue 3 component that reuses GLPI's own Vue runtime (`window._vue`), loaded as
+a deferred JS module. Sources live in `src/vue/`; the built bundle and stylesheet in
+`public/js/dist/` are committed and shipped (GLPI does not build plugins at runtime). To change the
+bell UI:
+
+```bash
+npm install
+npm run build      # vite build -> public/js/dist/inappnotification-vue.{js,css}
+npm run lint       # eslint over src/vue
+```
+
+PHP unit tests (pure logic, no DB) run against glpi-core's vendor:
+
+```bash
+../glpi-core/vendor/bin/phpunit -c phpunit.xml.dist
+```
+
 ## Runtime Behavior
 
 - Unread badge uses aggregated `unread_count`.
@@ -133,7 +153,8 @@ Steps:
 
 ## Current Known Local Patches
 
-This workspace currently contains two local (non-upstream) core-level hotfixes:
+This plugin relies on two intentional local (non-upstream) hotfixes in the vendored `glpi-core`
+checkout:
 
 1. Browser permission prompt timing
 - File: `glpi-core/js/notifications_ajax.js`
@@ -144,6 +165,11 @@ This workspace currently contains two local (non-upstream) core-level hotfixes:
 - Purpose: avoid `Undefined array key "pendingreasons_id"` by guarding missing key access.
 
 If you upgrade/replace GLPI core, re-check whether these fixes are still needed.
+
+> ⚠️ `git -C ../glpi-core status` currently shows **additional** local modifications to the vendored
+> core beyond these two (e.g. `src/Html.php`, `src/Glpi/Plugin/Hooks.php`, `src/CommonGLPI.php`,
+> `src/Toolbox.php`, …). These are not attributed/documented here yet and must be audited before any
+> core upgrade — they may belong to other plugins in the workspace.
 
 ## Design Principles
 

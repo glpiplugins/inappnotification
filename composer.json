@@ -1,0 +1,11 @@
+{
+  "name": "glpi/inappnotification",
+  "description": "In-app notification center for GLPI: top-bar bell, dropdown, and an 'inapp' notification mode.",
+  "type": "glpi-plugin",
+  "license": "GPL-3.0-or-later",
+  "autoload": {
+    "psr-4": {
+      "GlpiPlugin\\Inappnotification\\": "src/"
+    }
+  }
+}
