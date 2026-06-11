@@ -1,136 +1,117 @@
 # InAppNotification for GLPI
 
-`inappnotification` adds a persistent in-app notification center to GLPI, with a bell in the top bar, a rich dropdown, and list pages for searchable history and muted/upcoming items.
+`inappnotification` adds a persistent in-app notification center to GLPI: a notification **mode**
+(`inapp`) that captures events from GLPI's native notification pipeline, a reactive **bell** in the
+top bar, and server-rendered pages for searchable history, upcoming and muted items.
 
-## Current Status
+- Requires GLPI `>= 11.0.0` and `< 12.0.0`.
+- PHP namespace: `GlpiPlugin\Inappnotification\`.
+- Runs against an **unmodified** `glpi-core` (no core patches required).
 
-Implemented features:
+## Features
 
-- Custom GLPI notification mode `inapp` is registered.
-- Notifications are persisted in dedicated plugin tables.
-- Repeated events are aggregated by fingerprint (`occurrence_count`, `unread_count`).
-- Top-bar bell with unread badge and dropdown UI.
-- Dropdown actions (single item):
-  - Mark as read
-  - Mark as unread
-  - Snooze (1 day)
-  - Suppress
-- Dropdown bulk selection:
-  - Per-item checkbox
-  - Select all (visible tab/category)
-  - Bulk actions via actions menu: mark as read, snooze, suppress
-- Dedicated pages:
-  - Notification center/search list
-  - Upcoming notifications
-  - Upcoming notifications (all users, permission-based)
-  - Muted notifications
-- Dashboard cards:
-  - Unread total
-  - Unread per source family
-- Sound toggle in bell dropdown (client-side setting)
-- Theme-compatible UI (Tabler/GLPI styles)
+- Registers a custom notification mode `inapp` next to core's mail/ajax modes.
+- Persists notifications in dedicated tables, aggregating repeated events by fingerprint
+  (`occurrence_count`, `unread_count`).
+- Top-bar **bell** (Vue 3) with an unread badge and a dropdown:
+  - filter tabs per source family; unread / recently-read grouping;
+  - per-item actions: mark read / unread, snooze 1 day, suppress;
+  - bulk selection + bulk actions (mark read, snooze, suppress);
+  - "mark all as read"; sound toggle (cross-tab — only one tab chimes);
+  - footer links to the full list and to muted items.
+- Server-rendered pages: notification search list, upcoming (own), upcoming (all users, right-gated),
+  muted/snoozed.
+- Dashboard cards: unread total and unread per source family.
+- Per-user visibility enforced in GLPI search.
 
-## Notification Sources
+## How it works
 
-InAppNotification currently captures events through the native GLPI notification pipeline:
+```
+GLPI notification event ──(mode 'inapp')──▶ PluginInappnotificationNotificationInapp::sendNotification()
+                                                      │
+                                                      ▼
+                                           AlertStore::captureFromNotificationMode()
+                                                      │  writes (per user, fingerprinted)
+                                                      ▼
+                                    glpi_plugin_inappnotification_alerts
+                                                      ▲  reads / mutates (AJAX, JSON)
+                                                      │
+    Top-bar bell (Vue) ──▶ front/notifications.php ───┘
+```
 
-1. Notification mode `inapp`
-- Entry point: `PluginInappnotificationNotificationInapp::sendNotification()`
-- Persistence: `AlertStore::captureFromNotificationMode()`
-- Controlled by native GLPI notification configuration:
-  - by itemtype/event
-  - by notification template
-  - by target/recipient
-  - by mode/channel (`inapp`)
+- **Mode classes** (global, GLPI naming convention) resolved by
+  `Notification_NotificationTemplate::getModeClass('inapp')`:
+  - `PluginInappnotificationNotificationInapp` — the channel (`sendNotification()`),
+  - `PluginInappnotificationNotificationEventInapp` — the event class,
+  - `PluginInappnotificationNotificationInappSetting` — the mode settings page.
+- **Tables**: `glpi_plugin_inappnotification_alerts`, `…_scheduled`, `…_scheduled_global`.
+- The **bell** is a Vue component mounted onto GLPI's shared Vue runtime (see *Frontend*); it polls
+  `front/notifications.php` for the list/counts and posts actions back to it.
 
-Source families (`source_group`):
+## Notification sources
 
-- `savedsearch`
-- `ticket`
-- `project`
-- `reminder`
-- `sla`
-- `crontask`
-- `other`
+Events are captured through the **native GLPI notification pipeline** — what reaches the bell is
+governed entirely by GLPI's own notification configuration (by itemtype/event, template,
+target/recipient, and the `inapp` mode/channel).
 
-## GLPI Integration
+Source families (`source_group`): `savedsearch`, `ticket`, `project`, `reminder`, `sla`, `crontask`,
+`other`.
 
-The plugin integrates through standard GLPI extension points:
+## GLPI integration points
 
-- Notification mode registration (`Notification_NotificationTemplate::registerMode`)
-- Plugin hooks:
-  - dashboard cards
-  - extra search visibility/default where criteria
-- Menu integration:
-  - `Tools` entries
-  - plugin config page
-- Native GLPI search for plugin data (`AlertEntry`)
-- Native session/security handling:
-  - login checks
-  - CSRF handling
-  - user-specific visibility
+Wired in `plugin_init_inappnotification()` (`setup.php`):
+
+- `Notification_NotificationTemplate::registerMode('inapp', …, 'inappnotification')`.
+- `Plugin::registerClass(ProfileTab, ['addtabon' => [Profile]])` — exposes the plugin right on the
+  profile form.
+- `$PLUGIN_HOOKS`:
+  - `menu_toadd` → a `Tools` entry (`AlertEntry`); `config_page` → `front/config.form.php`;
+  - `dashboard_cards` → the unread cards;
+  - `add_default_where` + the `addDefaultWhere` auto-hook → restrict the plugin's itemtypes to the
+    current user in GLPI search;
+  - `add_css` / `javascript_module` → the built bell assets in `public/js/dist/`;
+  - `add_header_tag` → the `inappnotification:boot` meta tag (config + server-translated labels).
+- Native GLPI `Search` for the `AlertEntry` itemtype; native session/CSRF handling in `front/*.php`.
+- On install/init, the core switch `notifications_inapp` is ensured.
+
+Access: the "all users upcoming" list requires the `plugin_inappnotification_upcoming_all` right
+(managed on the profile's *InAppNotification* tab). All other views are scoped to the logged-in user.
 
 ## Configuration
 
-Path:
+`Setup > Plugins > InAppNotification > Configuration` (stored under the `plugin:inappnotification`
+config context; defaults seeded on install/init):
 
-- `Setup > Plugins > InAppNotification > Configuration`
-
-Available settings:
-
-- Enable/disable source families:
-  - Saved searches
-  - Tickets
-  - Projects
-  - Reminders
-  - SLA / SLM
-  - Scheduled tasks
-  - Other alert sources
-- Ticket filter:
-  - Capture only open tickets (`ticket_open_only`)
-- Itemtype CSV filters:
-  - Include whitelist (`include_itemtypes`)
-  - Exclude blacklist (`exclude_itemtypes`)
-
-Additional behavior:
-
-- The core switch `notifications_inapp` is ensured during plugin init/install.
-- Dashboard cards are available in native GLPI dashboard configuration.
+- Enable/disable source families: saved searches, tickets, projects, reminders, SLA/SLM, scheduled
+  tasks, other.
+- `ticket_open_only` — capture only open tickets.
+- `include_itemtypes` / `exclude_itemtypes` — CSV whitelist / blacklist of itemtypes.
 
 ## Localization
 
-Default source language is English.
+Source language is English; catalogs live in `locales/` (`en_GB`, `de_DE`, `fr_FR`) as `.po` source +
+compiled `.mo`.
 
-The plugin now includes GLPI-style translation files (.po source + .mo runtime) in:
+- PHP/Twig strings: `__('…','inappnotification')` / `_n(…)`.
+- The Vue bell receives **already-translated** labels from the server via the
+  `<meta name="inappnotification:boot">` tag (built in `plugin_inappnotification_header_tags()`),
+  so there is no JS translation dictionary.
 
-- `locales/en_GB.po`
-- `locales/de_DE.po`
-- `locales/fr_FR.po`
+Recompile a `.mo` after editing its `.po`:
 
-Notes:
-
-- PHP strings use `__('...','inappnotification')` / `_n(...)`.
-- The Vue bell receives already-translated labels from the server (PHP gettext, plugin domain)
-  via a `<meta name="inappnotification:boot">` tag — there is no separate JS translation dictionary.
-
-## Installation
-
-Requirements:
-
-- GLPI `>= 11.0.0` and `< 12.0.0`
-
-Steps:
-
-1. Copy the plugin to `glpi/plugins/inappnotification`.
-2. In GLPI, open `Setup > Plugins`, then install and enable the plugin.
-3. Optionally adjust settings at `Setup > Plugins > InAppNotification > Configuration`.
+```bash
+php tools/po2mo.php locales/de_DE.po locales/de_DE.mo
+```
 
 ## Frontend (build)
 
-The top-bar bell is a Vue 3 component that reuses GLPI's own Vue runtime (`window._vue`), loaded as
-a deferred JS module. Sources live in `src/vue/`; the built bundle and stylesheet in
-`public/js/dist/` are committed and shipped (GLPI does not build plugins at runtime). To change the
-bell UI:
+The bell is a Vue 3 component that **reuses GLPI's own Vue runtime** (`window._vue`, exposed by
+core's `build/vue/app.js`) rather than bundling its own. `vite.config.js` marks `vue` as an external
+mapped to `window._vue`, so there is no second Vue in the browser. The bundle is registered as a
+deferred JS module (`javascript_module`) so it runs after core's `app.js`.
+
+Sources are in `src/vue/`; the built artifacts in `public/js/dist/` are committed and shipped (GLPI
+does not build plugins at runtime).
 
 ```bash
 npm install
@@ -138,42 +119,49 @@ npm run build      # vite build -> public/js/dist/inappnotification-vue.{js,css}
 npm run lint       # eslint over src/vue
 ```
 
-PHP unit tests (pure logic, no DB) run against glpi-core's vendor:
+## Tests
+
+PHPUnit unit tests cover pure, DB-free logic (`Settings`, `AlertStore` helpers) and run on the host
+against glpi-core's vendor:
 
 ```bash
 ../glpi-core/vendor/bin/phpunit -c phpunit.xml.dist
 ```
 
-## Runtime Behavior
+If the host PHP CLI lacks the `dom`/`xml` extensions, run the same command inside the GLPI container.
 
-- Unread badge uses aggregated `unread_count`.
-- Re-triggering the same fingerprint increments counters and sets notification back to unread.
-- Visibility is user-specific: users only see their own notification entries.
-- Snoozed/suppressed entries are excluded from active unread lists until reactivated/expired.
+## Installation
 
-## Current Known Local Patches
+1. Copy the plugin to `glpi/plugins/inappnotification`.
+2. `Setup > Plugins` → install and enable (creates tables, seeds config, registers the right).
+3. Configure GLPI notifications to use the `inapp` mode, and/or adjust the plugin settings.
 
-This plugin relies on two intentional local (non-upstream) hotfixes in the vendored `glpi-core`
-checkout:
+## Runtime behavior
 
-1. Browser permission prompt timing
-- File: `glpi-core/js/notifications_ajax.js`
-- Purpose: call `Notification.requestPermission()` only from a user gesture (`pointerdown`/`keydown`).
+- The unread badge uses the aggregated `unread_count`.
+- Re-triggering the same fingerprint increments counters and flips the entry back to unread.
+- Visibility is user-specific (enforced in search via the default-where hooks).
+- Snoozed/suppressed entries are excluded from active unread lists until they expire or are reactivated.
 
-2. Pending reason key guard
-- File: `glpi-core/src/PendingReason_Item.php`
-- Purpose: avoid `Undefined array key "pendingreasons_id"` by guarding missing key access.
+## Project layout
 
-If you upgrade/replace GLPI core, re-check whether these fixes are still needed.
+```
+setup.php            lifecycle: hooks, mode registration, boot meta tag, install/uninstall
+hook.php             search restriction hooks (per-user visibility)
+src/Mode/            global mode classes (Inapp / EventInapp / InappSetting)
+src/AlertEntry.php, src/ScheduledEntry.php, src/ScheduledGlobalEntry.php   CommonDBTM models
+src/Service/         AlertStore (capture/read/mutate), ScheduledNotificationStore
+src/Config/Settings.php          plugin settings
+src/Dashboard/       dashboard card provider / registry
+src/Access.php, src/ProfileTab.php   rights
+front/               notifications.php (AJAX JSON), center/muted/scheduled pages, item forms, config
+src/vue/             Vue bell sources (built to public/js/dist/)
+locales/             .po sources + compiled .mo
+tests/               PHPUnit unit tests
+```
 
-> ⚠️ `git -C ../glpi-core status` currently shows **additional** local modifications to the vendored
-> core beyond these two (e.g. `src/Html.php`, `src/Glpi/Plugin/Hooks.php`, `src/CommonGLPI.php`,
-> `src/Toolbox.php`, …). These are not attributed/documented here yet and must be audited before any
-> core upgrade — they may belong to other plugins in the workspace.
+## Design principles
 
-## Design Principles
-
-- Keep core coupling minimal.
-- Reuse native GLPI mechanics where possible.
-- Keep plugin behavior explicit and auditable.
-- Favor safe defaults and user-scoped visibility.
+- Reuse native GLPI mechanics (notification pipeline, search, Vue runtime, gettext) over bespoke plumbing.
+- Keep core coupling minimal — the plugin runs against an unmodified `glpi-core`.
+- User-scoped visibility and safe defaults; explicit, auditable behavior.
