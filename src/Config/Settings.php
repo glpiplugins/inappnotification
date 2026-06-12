@@ -21,6 +21,8 @@ class Settings
             'ticket_open_only' => 0,
             'include_itemtypes' => '',
             'exclude_itemtypes' => '',
+            // Developer/testing switch: enables front/dev.php (sample-notification panel).
+            'dev_test_panel' => 0,
         ];
     }
 

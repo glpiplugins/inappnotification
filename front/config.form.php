@@ -94,6 +94,29 @@ echo "<input type='text' class='form-control' id='inappnotification_exclude_item
     . " placeholder='Change,Problem'>";
 echo "</div>";
 
+echo "<div class='col-12'><hr class='my-2'></div>";
+
+echo "<div class='col-12'><h4 class='mb-1'>" . htmlescape(__('Developer / testing', 'inappnotification')) . "</h4>";
+echo "<div class='text-muted small'>" . htmlescape(__('Enables a panel to generate sample notifications. For development environments only.', 'inappnotification')) . "</div></div>";
+
+echo "<div class='col-md-6'>";
+echo "<label class='form-label' for='inappnotification_dev_test_panel'>" . htmlescape(__('Enable developer test panel', 'inappnotification')) . "</label>";
+echo Dropdown::showFromArray('dev_test_panel', $yes_no_options, [
+    'value' => (int) ($settings['dev_test_panel'] ?? 0),
+    'display' => false,
+    'id' => 'inappnotification_dev_test_panel',
+    'class' => 'form-select',
+]);
+echo "</div>";
+
+if ((int) ($settings['dev_test_panel'] ?? 0) === 1) {
+    $dev_url = (string) ($GLOBALS['CFG_GLPI']['root_doc'] ?? '') . '/plugins/inappnotification/front/dev.php';
+    echo "<div class='col-md-6 d-flex align-items-end'>";
+    echo "<a class='btn btn-outline-secondary' href='" . htmlescape($dev_url) . "'><i class='ti ti-flask me-1'></i>"
+        . htmlescape(__('Open developer test panel', 'inappnotification')) . "</a>";
+    echo "</div>";
+}
+
 echo "</div>";
 echo "<button type='submit' class='btn btn-primary mt-2'>" . htmlescape(__('Save')) . "</button>";
 echo "</form>";
