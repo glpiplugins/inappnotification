@@ -72,6 +72,9 @@ function plugin_init_inappnotification(): void
     if ($boot_header_tags !== []) {
         $PLUGIN_HOOKS[Hooks::ADD_HEADER_TAG]['inappnotification'] = $boot_header_tags;
     }
+
+    // Ensure the upcoming-notifications cron exists (self-heals already-installed instances).
+    plugin_inappnotification_register_cron();
 }
 
 /**
@@ -142,13 +145,14 @@ function plugin_inappnotification_register_autoloader(): void
     }
 
     spl_autoload_register(static function (string $class): void {
-        // Global (non-namespaced) notification mode classes live under src/Mode/.
-        // GLPI's core legacy autoloader only resolves them from src/<ClassName>.php,
-        // so they must be mapped explicitly here.
+        // Global (non-namespaced) classes (notification modes, cron task). GLPI's core legacy
+        // autoloader only resolves global plugin classes once the plugin is "loaded", so map them
+        // explicitly here to also cover install/early contexts.
         $legacy_map = [
             'PluginInappnotificationNotificationInapp' => __DIR__ . '/src/Mode/NotificationInapp.php',
             'PluginInappnotificationNotificationEventInapp' => __DIR__ . '/src/Mode/NotificationEventInapp.php',
             'PluginInappnotificationNotificationInappSetting' => __DIR__ . '/src/Mode/NotificationInappSetting.php',
+            'PluginInappnotificationScheduledTask' => __DIR__ . '/src/PluginInappnotificationScheduledTask.php',
         ];
         if (isset($legacy_map[$class]) && is_file($legacy_map[$class])) {
             require_once $legacy_map[$class];
@@ -168,6 +172,32 @@ function plugin_inappnotification_register_autoloader(): void
     });
 
     $registered = true;
+}
+
+/**
+ * Register the cron task that materializes the "upcoming notifications" global table.
+ * Idempotent: leaves an already-registered task (and any admin frequency/state changes) alone.
+ */
+function plugin_inappnotification_register_cron(): void
+{
+    if (!class_exists('PluginInappnotificationScheduledTask')) {
+        require_once __DIR__ . '/src/PluginInappnotificationScheduledTask.php';
+    }
+
+    $task = new CronTask();
+    if ($task->getFromDBbyName(PluginInappnotificationScheduledTask::class, 'RefreshUpcoming')) {
+        return;
+    }
+
+    CronTask::register(
+        PluginInappnotificationScheduledTask::class,
+        'RefreshUpcoming',
+        3600, // hourly; future-dated notifications don't need finer granularity
+        [
+            'state'   => CronTask::STATE_WAITING,
+            'comment' => __('Rebuild the upcoming in-app notifications list', 'inappnotification'),
+        ]
+    );
 }
 
 function plugin_inappnotification_check_prerequisites(): bool
@@ -378,6 +408,7 @@ function plugin_inappnotification_install(): bool
     Config::setConfigurationValues('core', [
         'notifications_inapp' => 1,
     ]);
+    plugin_inappnotification_register_cron();
 
     return true;
 }
@@ -385,6 +416,8 @@ function plugin_inappnotification_install(): bool
 function plugin_inappnotification_uninstall(): bool
 {
     global $DB;
+
+    CronTask::unregister('Inappnotification');
 
     $DB->dropTable('glpi_plugin_inappnotification_alerts', true);
     $DB->dropTable('glpi_plugin_inappnotification_scheduled', true);
