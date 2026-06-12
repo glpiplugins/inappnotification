@@ -7,7 +7,6 @@ use GlpiPlugin\Inappnotification\Config\Settings;
 use ITILFollowup;
 use SavedSearch;
 use SavedSearch_Alert;
-use Session;
 use Ticket;
 
 class AlertStore
@@ -90,7 +89,6 @@ class AlertStore
                 'items' => [],
                 'unread_total' => 0,
                 'muted_total' => 0,
-                'csrf_token' => Session::getNewCSRFToken(),
             ];
         }
 
@@ -110,7 +108,6 @@ class AlertStore
             'items' => $items,
             'unread_total' => self::getUnreadTotal($users_id),
             'muted_total' => self::getMutedTotal($users_id),
-            'csrf_token' => Session::getNewCSRFToken(),
         ];
     }
 
@@ -145,18 +142,13 @@ class AlertStore
             return 0;
         }
 
-        $count = 0;
-        $iterator = $DB->request([
-            'SELECT' => ['id'],
-            'FROM'   => self::TABLE,
-            'WHERE'  => self::getMutedWhere($users_id),
-        ]);
+        $row = $DB->request([
+            'COUNT' => 'cpt',
+            'FROM'  => self::TABLE,
+            'WHERE' => self::getMutedWhere($users_id),
+        ])->current();
 
-        foreach ($iterator as $row) {
-            $count++;
-        }
-
-        return $count;
+        return (int) ($row['cpt'] ?? 0);
     }
 
     public static function snooze(int $users_id, int $id, int $minutes): void
@@ -335,20 +327,13 @@ class AlertStore
             return 0;
         }
 
-        $sum = 0;
-        $iterator = $DB->request([
-            'SELECT' => ['unread_count'],
+        $row = $DB->request([
+            'SELECT' => ['SUM' => 'unread_count AS total'],
             'FROM'   => self::TABLE,
-            'WHERE'  => self::getVisibleWhere($users_id) + [
-                'is_read'  => 0,
-            ],
-        ]);
+            'WHERE'  => self::getVisibleWhere($users_id) + ['is_read' => 0],
+        ])->current();
 
-        foreach ($iterator as $row) {
-            $sum += (int) ($row['unread_count'] ?? 0);
-        }
-
-        return $sum;
+        return (int) ($row['total'] ?? 0);
     }
 
     public static function getUnreadCountByGroup(int $users_id, string $group): int
@@ -359,21 +344,16 @@ class AlertStore
             return 0;
         }
 
-        $sum = 0;
-        $iterator = $DB->request([
-            'SELECT' => ['unread_count'],
+        $row = $DB->request([
+            'SELECT' => ['SUM' => 'unread_count AS total'],
             'FROM'   => self::TABLE,
             'WHERE'  => self::getVisibleWhere($users_id) + [
                 'is_read' => 0,
                 'source_group' => $group,
             ],
-        ]);
+        ])->current();
 
-        foreach ($iterator as $row) {
-            $sum += (int) ($row['unread_count'] ?? 0);
-        }
-
-        return $sum;
+        return (int) ($row['total'] ?? 0);
     }
 
     private static function upsertNotification(int $users_id, string $fingerprint, array $data): void
