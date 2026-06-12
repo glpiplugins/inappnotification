@@ -130,6 +130,18 @@ against glpi-core's vendor:
 
 If the host PHP CLI lacks the `dom`/`xml` extensions, run the same command inside the GLPI container.
 
+## Developer test panel
+
+For dev environments there is a panel that generates sample notifications so the bell, the muted
+page and the upcoming pages can be exercised without real GLPI events: `front/dev.php`.
+
+It is gated by the GLPI `config` right **and** either a development GLPI environment
+(`GLPI_ENVIRONMENT_TYPE=development`) or the `dev_test_panel` switch under
+`Setup > Plugins > InAppNotification > Configuration` (off by default). It can generate one
+notification per source type, all notification states (unread/read/snoozed/suppressed/expired), and
+seed an "upcoming" recipient-scope demo; a "Clear" button removes everything it created (in-app
+notifications are tagged `[TEST]`, seeded upcoming rows use a `devtest:` fingerprint).
+
 ## Installation
 
 1. Copy the plugin to `glpi/plugins/inappnotification`.

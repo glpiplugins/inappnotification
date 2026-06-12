@@ -164,11 +164,20 @@ class ScheduledNotificationStore
         }
 
         // Record the materialization time so views can cheaply check freshness.
-        Config::setConfigurationValues(self::CONFIG_CONTEXT, [
-            self::REFRESHED_AT_KEY => $now,
-        ]);
+        self::markGlobalFresh($now);
 
         return $count;
+    }
+
+    /**
+     * Mark the global table as freshly materialized "now" (or at $when). Used by refreshGlobal()
+     * and by the dev test panel after seeding rows, so on-view rebuilds do not wipe them.
+     */
+    public static function markGlobalFresh(?string $when = null): void
+    {
+        Config::setConfigurationValues(self::CONFIG_CONTEXT, [
+            self::REFRESHED_AT_KEY => $when ?? ($_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s')),
+        ]);
     }
 
     /**
