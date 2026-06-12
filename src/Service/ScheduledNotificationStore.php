@@ -114,42 +114,53 @@ class ScheduledNotificationStore
             $items_id = (int) ($row['items_id'] ?? 0);
             $detail = trim((string) ($row['detail'] ?? ''));
             $entities_id = (int) ($row['entities_id'] ?? 0);
-            $recipient_users_id = (int) ($row['recipient_users_id'] ?? 0);
-            $recipient_label = trim((string) ($row['recipient_label'] ?? ''));
+            $entity_label = self::resolveEntityLabel($entities_id);
 
-            if ($recipient_label === '') {
-                $recipient_label = $recipient_users_id > 0
-                    ? self::resolveRecipientLabel($recipient_users_id)
-                    : __('Recipients from notification targets', 'inappnotification');
+            // Fan out one global row per actual recipient. Items whose recipients cannot be
+            // resolved get a single recipient_users_id=0 row that is only shown in the all-users
+            // overview — it is never projected into a personal upcoming list.
+            $recipients = is_array($row['recipients'] ?? null) ? $row['recipients'] : [];
+            if ($recipients === []) {
+                $recipients = [0 => __('Recipients from notification targets', 'inappnotification')];
             }
 
-            $fingerprint = sha1(implode('|', [
-                $kind,
-                $itemtype,
-                (string) $items_id,
-                $scheduled_at,
-                $detail,
-                (string) $recipient_users_id,
-            ]));
+            foreach ($recipients as $recipient_users_id => $recipient_label) {
+                $recipient_users_id = (int) $recipient_users_id;
+                $recipient_label = trim((string) $recipient_label);
+                if ($recipient_label === '') {
+                    $recipient_label = $recipient_users_id > 0
+                        ? self::resolveRecipientLabel($recipient_users_id)
+                        : __('Recipients from notification targets', 'inappnotification');
+                }
 
-            $DB->insert(self::GLOBAL_TABLE, [
-                'recipient_users_id' => $recipient_users_id,
-                'recipient_label' => $recipient_label,
-                'kind' => $kind,
-                'kind_label' => (string) ($row['kind_label'] ?? ''),
-                'scheduled_at' => $scheduled_at,
-                'itemtype' => $itemtype,
-                'items_id' => $items_id,
-                'item_label' => (string) ($row['item_label'] ?? ''),
-                'item_url' => (string) ($row['item_url'] ?? ''),
-                'detail' => $detail,
-                'entities_id' => $entities_id,
-                'entity_label' => self::resolveEntityLabel($entities_id),
-                'fingerprint' => $fingerprint,
-                'date_creation' => $now,
-                'date_mod' => $now,
-            ]);
-            $count++;
+                $fingerprint = sha1(implode('|', [
+                    $kind,
+                    $itemtype,
+                    (string) $items_id,
+                    $scheduled_at,
+                    $detail,
+                    (string) $recipient_users_id,
+                ]));
+
+                $DB->insert(self::GLOBAL_TABLE, [
+                    'recipient_users_id' => $recipient_users_id,
+                    'recipient_label' => $recipient_label,
+                    'kind' => $kind,
+                    'kind_label' => (string) ($row['kind_label'] ?? ''),
+                    'scheduled_at' => $scheduled_at,
+                    'itemtype' => $itemtype,
+                    'items_id' => $items_id,
+                    'item_label' => (string) ($row['item_label'] ?? ''),
+                    'item_url' => (string) ($row['item_url'] ?? ''),
+                    'detail' => $detail,
+                    'entities_id' => $entities_id,
+                    'entity_label' => $entity_label,
+                    'fingerprint' => $fingerprint,
+                    'date_creation' => $now,
+                    'date_mod' => $now,
+                ]);
+                $count++;
+            }
         }
 
         // Record the materialization time so views can cheaply check freshness.
@@ -162,8 +173,10 @@ class ScheduledNotificationStore
 
     /**
      * Project the user's upcoming notifications from the materialized global table into the
-     * per-user table. Cheap: a SELECT + INSERT, no source queries or object hydration. Ensures
-     * the global table is fresh first (a no-op when the cron keeps it up to date).
+     * per-user table. Only rows where the user is an actual recipient are taken (the global
+     * recipient_users_id=0 "unresolved recipients" rows stay out of personal lists). Cheap: a
+     * SELECT + INSERT, no source queries or object hydration. Ensures the global table is fresh
+     * first (a no-op when the cron keeps it up to date).
      */
     public static function refreshForUser(int $users_id, int $limit = self::DEFAULT_LIMIT): void
     {
@@ -187,7 +200,7 @@ class ScheduledNotificationStore
 
         $iterator = $DB->request([
             'FROM'  => self::GLOBAL_TABLE,
-            'WHERE' => ['recipient_users_id' => [$users_id, 0]],
+            'WHERE' => ['recipient_users_id' => $users_id],
             'ORDER' => ['scheduled_at ASC', 'id ASC'],
             'LIMIT' => max(1, min(self::MAX_LIMIT, $limit)),
         ]);
@@ -320,8 +333,7 @@ class ScheduledNotificationStore
                 'item_url' => self::buildItemUrl($item),
                 'detail' => $detail,
                 'entities_id' => self::resolveEntityId($item),
-                'recipient_users_id' => (int) ($row['users_id'] ?? 0),
-                'recipient_label' => self::resolveRecipientLabel((int) ($row['users_id'] ?? 0)),
+                'recipients' => self::singleRecipient((int) ($row['users_id'] ?? 0)),
             ];
         }
 
@@ -386,8 +398,7 @@ class ScheduledNotificationStore
                         ? sprintf(__('Pending reason: %s', 'inappnotification'), $reason_name)
                         : __('Pending reason reminder', 'inappnotification'),
                     'entities_id' => self::resolveEntityId($item),
-                    'recipient_users_id' => self::resolveSingleRecipientUserId($auto_reminder_recipients),
-                    'recipient_label' => self::resolveRecipientListLabel($auto_reminder_recipients),
+                    'recipients' => $auto_reminder_recipients,
                 ];
             }
 
@@ -406,8 +417,7 @@ class ScheduledNotificationStore
                         ? sprintf(__('Pending reason: %s', 'inappnotification'), $reason_name)
                         : __('Pending reason resolution', 'inappnotification'),
                     'entities_id' => self::resolveEntityId($item),
-                    'recipient_users_id' => self::resolveSingleRecipientUserId($auto_resolve_recipients),
-                    'recipient_label' => self::resolveRecipientListLabel($auto_resolve_recipients),
+                    'recipients' => $auto_resolve_recipients,
                 ];
             }
         }
@@ -451,8 +461,7 @@ class ScheduledNotificationStore
                 'item_url' => self::buildItemUrl($item),
                 'detail' => self::getAlertTypeLabel((int) ($row['type'] ?? 0)),
                 'entities_id' => self::resolveEntityId($item),
-                'recipient_users_id' => 0,
-                'recipient_label' => __('Recipients from notification targets', 'inappnotification'),
+                'recipients' => [], // recipients not resolvable for Alert events -> all-users view only
             ];
         }
 
@@ -591,6 +600,16 @@ class ScheduledNotificationStore
     }
 
     /**
+     * Build a single-recipient map (users_id => label), or an empty map when no user is given.
+     *
+     * @return array<int, string>
+     */
+    private static function singleRecipient(int $users_id): array
+    {
+        return $users_id > 0 ? [$users_id => self::resolveRecipientLabel($users_id)] : [];
+    }
+
+    /**
      * Resolve in-app recipients configured for a GLPI notification event.
      *
      * @return array<int, string> users_id => display label
@@ -677,26 +696,6 @@ class ScheduledNotificationStore
 
         $cache[$cache_key] = $recipients;
         return $recipients;
-    }
-
-    /**
-     * @param array<int, string> $recipients
-     */
-    private static function resolveSingleRecipientUserId(array $recipients): int
-    {
-        return count($recipients) === 1 ? (int) array_key_first($recipients) : 0;
-    }
-
-    /**
-     * @param array<int, string> $recipients
-     */
-    private static function resolveRecipientListLabel(array $recipients): string
-    {
-        if ($recipients === []) {
-            return __('Recipients from notification targets', 'inappnotification');
-        }
-
-        return implode(', ', array_values($recipients));
     }
 
     private static function getAlertTypeLabel(int $type): string
