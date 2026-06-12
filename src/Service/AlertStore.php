@@ -92,6 +92,10 @@ class AlertStore
             ];
         }
 
+        // A snooze is "remind me later": once it expires, surface the notification as unread
+        // again (badge + the new-unread toast/sound) instead of letting it reappear as read.
+        self::reactivateExpiredSnoozes($users_id);
+
         $items = [];
         $iterator = $DB->request([
             'FROM'  => self::TABLE,
@@ -226,6 +230,38 @@ class AlertStore
             [
                 'id' => $id,
                 'users_id' => $users_id,
+            ]
+        );
+    }
+
+    /**
+     * Flip the user's expired snoozes (not suppressed, snoozed_until in the past) back to unread,
+     * so a "snooze 1 day" actually re-notifies once it lapses. Suppressed entries are left muted.
+     * Indexed by idx_user_muted (users_id, is_suppressed, snoozed_until).
+     */
+    private static function reactivateExpiredSnoozes(int $users_id): void
+    {
+        global $DB;
+
+        if ($users_id <= 0 || !self::tableReady() || !self::muteFieldsReady()) {
+            return;
+        }
+
+        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+
+        $DB->update(
+            self::TABLE,
+            [
+                'snoozed_until' => null,
+                'is_read' => 0,
+                'unread_count' => 1,
+                'last_triggered_at' => $now,
+                'date_mod' => $now,
+            ],
+            [
+                'users_id' => $users_id,
+                'is_suppressed' => 0,
+                'snoozed_until' => ['<=', $now],
             ]
         );
     }
