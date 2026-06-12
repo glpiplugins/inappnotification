@@ -27,7 +27,8 @@ if ($limit <= 0 || $limit > 1000) {
     $limit = 500;
 }
 
-ScheduledNotificationStore::refreshGlobal($limit);
+// The cron keeps the global table fresh; only rebuild on-view as a fallback when it is stale.
+ScheduledNotificationStore::ensureGlobalFresh($limit);
 $table_ready = ScheduledNotificationStore::tableReadyGlobal();
 
 $root_doc = (string) ($GLOBALS['CFG_GLPI']['root_doc'] ?? '');

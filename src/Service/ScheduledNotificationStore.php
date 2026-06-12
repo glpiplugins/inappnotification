@@ -7,6 +7,7 @@ use CommonDBChild;
 use CommonDBTM;
 use CommonITILObject;
 use CommonITILTask;
+use Config;
 use Dropdown;
 use Glpi\DBAL\QueryExpression;
 use Notification;
@@ -20,9 +21,16 @@ class ScheduledNotificationStore
 {
     public const TABLE = 'glpi_plugin_inappnotification_scheduled';
     public const GLOBAL_TABLE = 'glpi_plugin_inappnotification_scheduled_global';
+    public const MAX_LIMIT = 1000;
     private const DEFAULT_LIMIT = 300;
-    private const MAX_LIMIT = 1000;
     private const SOURCE_QUERY_LIMIT = 1000;
+
+    /** Config context + key recording the last global materialization time. */
+    private const CONFIG_CONTEXT = 'plugin:inappnotification';
+    private const REFRESHED_AT_KEY = 'scheduled_refreshed_at';
+
+    /** How long the global table is considered fresh; should be >= the cron frequency (1h). */
+    private const GLOBAL_FRESH_MAX_AGE = 7200;
 
     /** @var array<string, CommonDBTM|null> */
     private static array $item_cache = [];
@@ -81,12 +89,12 @@ class ScheduledNotificationStore
             && $DB->fieldExists(self::GLOBAL_TABLE, 'scheduled_at');
     }
 
-    public static function refreshGlobal(int $limit = self::DEFAULT_LIMIT): void
+    public static function refreshGlobal(int $limit = self::DEFAULT_LIMIT): int
     {
         global $DB;
 
         if (!self::tableReadyGlobal()) {
-            return;
+            return 0;
         }
 
         $rows = self::getUpcoming($limit);
@@ -94,6 +102,7 @@ class ScheduledNotificationStore
 
         $DB->delete(self::GLOBAL_TABLE, [new QueryExpression('1=1')]);
 
+        $count = 0;
         foreach ($rows as $row) {
             $scheduled_at = trim((string) ($row['scheduled_at'] ?? ''));
             if ($scheduled_at === '') {
@@ -140,9 +149,22 @@ class ScheduledNotificationStore
                 'date_creation' => $now,
                 'date_mod' => $now,
             ]);
+            $count++;
         }
+
+        // Record the materialization time so views can cheaply check freshness.
+        Config::setConfigurationValues(self::CONFIG_CONTEXT, [
+            self::REFRESHED_AT_KEY => $now,
+        ]);
+
+        return $count;
     }
 
+    /**
+     * Project the user's upcoming notifications from the materialized global table into the
+     * per-user table. Cheap: a SELECT + INSERT, no source queries or object hydration. Ensures
+     * the global table is fresh first (a no-op when the cron keeps it up to date).
+     */
     public static function refreshForUser(int $users_id, int $limit = self::DEFAULT_LIMIT): void
     {
         global $DB;
@@ -151,25 +173,31 @@ class ScheduledNotificationStore
             return;
         }
 
-        $rows = self::getUpcoming($limit);
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
-        $recipient_label = trim((string) getUserName($users_id, 0, true));
-        if ($recipient_label === '') {
-            $recipient_label = sprintf('%s #%d', __('User'), $users_id);
+        self::ensureGlobalFresh(max($limit, self::DEFAULT_LIMIT));
+
+        if (!self::tableReadyGlobal()) {
+            return;
         }
 
-        $DB->delete(self::TABLE, [
-            'users_id' => $users_id,
+        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $fallback_recipient = trim((string) getUserName($users_id, 0, true));
+        if ($fallback_recipient === '') {
+            $fallback_recipient = sprintf('%s #%d', __('User'), $users_id);
+        }
+
+        $iterator = $DB->request([
+            'FROM'  => self::GLOBAL_TABLE,
+            'WHERE' => ['recipient_users_id' => [$users_id, 0]],
+            'ORDER' => ['scheduled_at ASC', 'id ASC'],
+            'LIMIT' => max(1, min(self::MAX_LIMIT, $limit)),
         ]);
 
-        foreach ($rows as $row) {
+        $DB->delete(self::TABLE, ['users_id' => $users_id]);
+
+        $seen = [];
+        foreach ($iterator as $row) {
             $scheduled_at = trim((string) ($row['scheduled_at'] ?? ''));
             if ($scheduled_at === '') {
-                continue;
-            }
-
-            $recipient_users_id = (int) ($row['recipient_users_id'] ?? 0);
-            if ($recipient_users_id > 0 && $recipient_users_id !== $users_id) {
                 continue;
             }
 
@@ -177,21 +205,23 @@ class ScheduledNotificationStore
             $itemtype = trim((string) ($row['itemtype'] ?? ''));
             $items_id = (int) ($row['items_id'] ?? 0);
             $detail = trim((string) ($row['detail'] ?? ''));
-            $entities_id = (int) ($row['entities_id'] ?? 0);
-            $row_recipient = trim((string) ($row['recipient_label'] ?? ''));
-            $effective_recipient_label = $row_recipient !== '' ? $row_recipient : $recipient_label;
 
-            $fingerprint = sha1(implode('|', [
-                $kind,
-                $itemtype,
-                (string) $items_id,
-                $scheduled_at,
-                $detail,
-            ]));
+            // Per-user fingerprint excludes the recipient, so global rows that differ only by
+            // recipient collapse to one here (avoids the (users_id, fingerprint) unique clash).
+            $fingerprint = sha1(implode('|', [$kind, $itemtype, (string) $items_id, $scheduled_at, $detail]));
+            if (isset($seen[$fingerprint])) {
+                continue;
+            }
+            $seen[$fingerprint] = true;
+
+            $recipient_label = trim((string) ($row['recipient_label'] ?? ''));
+            if ($recipient_label === '') {
+                $recipient_label = $fallback_recipient;
+            }
 
             $DB->insert(self::TABLE, [
                 'users_id' => $users_id,
-                'recipient_label' => $effective_recipient_label,
+                'recipient_label' => $recipient_label,
                 'kind' => $kind,
                 'kind_label' => (string) ($row['kind_label'] ?? ''),
                 'scheduled_at' => $scheduled_at,
@@ -200,13 +230,52 @@ class ScheduledNotificationStore
                 'item_label' => (string) ($row['item_label'] ?? ''),
                 'item_url' => (string) ($row['item_url'] ?? ''),
                 'detail' => $detail,
-                'entities_id' => $entities_id,
-                'entity_label' => self::resolveEntityLabel($entities_id),
+                'entities_id' => (int) ($row['entities_id'] ?? 0),
+                'entity_label' => (string) ($row['entity_label'] ?? ''),
                 'fingerprint' => $fingerprint,
                 'date_creation' => $now,
                 'date_mod' => $now,
             ]);
         }
+    }
+
+    /**
+     * Rebuild the global table only when it is empty or older than $maxAgeSeconds.
+     * The cron normally keeps it fresh, so this is a no-op on most page views.
+     */
+    public static function ensureGlobalFresh(
+        int $limit = self::DEFAULT_LIMIT,
+        int $maxAgeSeconds = self::GLOBAL_FRESH_MAX_AGE
+    ): void {
+        if (self::isGlobalFresh($maxAgeSeconds)) {
+            return;
+        }
+
+        self::refreshGlobal($limit);
+    }
+
+    public static function isGlobalFresh(int $maxAgeSeconds): bool
+    {
+        if (!self::tableReadyGlobal()) {
+            return false;
+        }
+
+        // The timestamp (set by refreshGlobal even when 0 rows materialize) is the authoritative
+        // freshness marker. Row count is intentionally not used: "nothing upcoming" is still fresh.
+        $values = Config::getConfigurationValues(self::CONFIG_CONTEXT, [self::REFRESHED_AT_KEY]);
+        $refreshed_at = trim((string) ($values[self::REFRESHED_AT_KEY] ?? ''));
+        if ($refreshed_at === '') {
+            return false;
+        }
+
+        $refreshed_ts = strtotime($refreshed_at);
+        if ($refreshed_ts === false) {
+            return false;
+        }
+
+        $now_ts = strtotime((string) ($_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s'))) ?: time();
+
+        return ($now_ts - $refreshed_ts) <= $maxAgeSeconds;
     }
 
     private static function collectPlanningRecalls(): array
