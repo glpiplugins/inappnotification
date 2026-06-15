@@ -5,7 +5,6 @@ namespace GlpiPlugin\Inappnotification\Service;
 use DateTime;
 use GlpiPlugin\Inappnotification\Config\Settings;
 use ITILFollowup;
-use SavedSearch;
 use SavedSearch_Alert;
 use Ticket;
 
@@ -731,12 +730,11 @@ class AlertStore
             return self::resolveGenericTargetUrl(SavedSearch_Alert::class, $savedsearch_alert_id);
         }
 
-        $savedsearch = new SavedSearch();
-        if (!$savedsearch->getFromDB($savedsearches_id)) {
-            return SavedSearch::getFormURLWithID($savedsearches_id);
-        }
-
-        return $savedsearch->getFormURLWithID($savedsearches_id);
+        // Open the *executed* saved search: front/savedsearch.php?action=load redirects to the
+        // search results (SavedSearch::load()), instead of the saved-search edit form.
+        global $CFG_GLPI;
+        $root = (string) ($CFG_GLPI['root_doc'] ?? '');
+        return $root . '/front/savedsearch.php?action=load&id=' . $savedsearches_id;
     }
 
     private static function matchesItemtype(string $itemtype, string $expected): bool
