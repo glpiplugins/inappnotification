@@ -124,11 +124,32 @@ class ScheduledEntry extends CommonDBTM implements ExtraVisibilityCriteria, Defa
         return $tab;
     }
 
+    /**
+     * The user's own entries are visible whatever entity is active: per-user scoping is done by the
+     * search restriction in hook.php, and `entities_id` only records the source item's entity.
+     * Otherwise GLPI search hides them in a sub-entity while the bell still counts them.
+     */
+    #[\Override]
+    public function isEntityAssign()
+    {
+        return false;
+    }
+
+    #[\Override]
+    public static function getSearchURL($full = true)
+    {
+        global $CFG_GLPI;
+
+        // The plugin's list page (with its action buttons), not GLPI's generic list route, so the
+        // search form, sorting and paging stay there.
+        return ($full ? (string) ($CFG_GLPI['root_doc'] ?? '') : '') . '/plugins/inappnotification/front/scheduled.php';
+    }
+
     #[\Override]
     public static function getDefaultSearchRequest(): array
     {
         return [
-            'forcedisplay' => [1, 2, 7, 3, 4, 5, 6],
+            'forcetoview'  => [1, 2, 7, 3, 4, 5, 6],
             'sort'         => 1,
             'order'        => 'ASC',
         ];
@@ -158,7 +179,7 @@ class ScheduledEntry extends CommonDBTM implements ExtraVisibilityCriteria, Defa
     }
 
     #[\Override]
-    public function getName($with_comment = 0)
+    public function getName($options = [])
     {
         return (string) ($this->fields['item_label'] ?? '');
     }

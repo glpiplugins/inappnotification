@@ -2,8 +2,6 @@
 
 use GlpiPlugin\Inappnotification\ScheduledEntry;
 
-include_once __DIR__ . '/../../../inc/includes.php';
-
 if (!class_exists(ScheduledEntry::class)) {
     require_once __DIR__ . '/../src/ScheduledEntry.php';
 }

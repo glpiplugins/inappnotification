@@ -109,6 +109,11 @@ msgstr "Stummgeschaltete/unterdrückte verwalten"
 msgid "Muted in-app notifications"
 msgstr "Stummgeschaltete In-App-Benachrichtigungen"
 
+msgid "Muted notification"
+msgid_plural "Muted notifications"
+msgstr[0] "Stummgeschaltete Benachrichtigung"
+msgstr[1] "Stummgeschaltete Benachrichtigungen"
+
 msgid "Muted notifications are not available yet. Please run the plugin update from GLPI plugins page."
 msgstr "Stummgeschaltete Benachrichtigungen sind noch nicht verfügbar. Bitte führen Sie das Plugin-Update auf der GLPI-Plugin-Seite aus."
 
@@ -312,6 +317,15 @@ msgstr "weitere Benachrichtigungen"
 
 msgid "Open notification list"
 msgstr "Benachrichtigungsliste öffnen"
+
+msgid "Notifications"
+msgstr "Benachrichtigungen"
+
+msgid "Test sound"
+msgstr "Ton testen"
+
+msgid "Sound blocked by the browser: click anywhere on the page, or allow autoplay for this site."
+msgstr "Ton vom Browser blockiert: einmal auf die Seite klicken oder Autoplay für diese Seite erlauben."
 
 msgid "Notification Center"
 msgstr "Benachrichtigungscenter"

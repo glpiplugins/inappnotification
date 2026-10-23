@@ -1,9 +1,8 @@
 <?php
 
+use Glpi\Exception\Http\AccessDeniedHttpException;
 use GlpiPlugin\Inappnotification\AlertEntry;
 use GlpiPlugin\Inappnotification\Access;
-
-include_once __DIR__ . '/../../../inc/includes.php';
 
 if (!class_exists(AlertEntry::class)) {
     require_once __DIR__ . '/../src/AlertEntry.php';
@@ -15,7 +14,7 @@ if (!class_exists(Access::class)) {
 Session::checkLoginUser();
 
 if (!AlertEntry::canView()) {
-    Html::displayRightError();
+    throw new AccessDeniedHttpException();
 }
 
 $root_doc = (string) ($GLOBALS['CFG_GLPI']['root_doc'] ?? '');
@@ -36,13 +35,6 @@ echo "<i class='ti ti-bell-off me-1'></i>" . htmlescape(__('Manage snoozed/suppr
 echo "</a>";
 echo "</div>";
 
-Search::show(
-    AlertEntry::class,
-    [
-        'sort'  => 6,
-        'order' => 'DESC',
-    ],
-    [2, 3, 7, 4, 5, 6]
-);
+Search::show(AlertEntry::class);
 
 Html::footer();

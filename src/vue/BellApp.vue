@@ -1,11 +1,16 @@
 <template>
-    <div class="inappnotification-bell-wrap">
+    <div
+        class="inappnotification-bell-wrap"
+        :data-coordination="coordination.mode"
+        :data-poller="coordination.poller ? 1 : 0"
+        :data-sound="coordination.sound ? 1 : 0"
+    >
         <a
             href="#"
             class="nav-link px-2 text-reset inappnotification-bell-toggle"
             data-bs-toggle="dropdown"
             data-bs-auto-close="outside"
-            aria-label="Notifications"
+            :aria-label="t('Notifications')"
             @click="onUnlock"
         >
             <i class="ti ti-bell"></i>
@@ -35,14 +40,27 @@
                         <i class="ti me-1" :class="soundToggleIcon"></i>{{ soundToggleLabel }}
                     </button>
                     <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary inappnotification-sound-test"
+                        :title="t('Test sound')"
+                        :aria-label="t('Test sound')"
+                        @click.prevent="onTestSound"
+                    >
+                        <i class="ti ti-player-play"></i>
+                    </button>
+                    <button
                         v-if="unreadTotal > 0"
                         type="button"
-                        class="btn btn-sm btn-outline-secondary"
+                        class="btn btn-sm btn-outline-secondary inappnotification-mark-all"
                         @click.prevent="onMarkAllRead"
                     >
                         {{ t('Mark all as read') }}
                     </button>
                 </div>
+            </div>
+
+            <div v-if="audioBlocked && !soundMuted" class="inappnotification-audio-hint" role="status">
+                <i class="ti ti-volume-off me-1"></i>{{ t('Sound blocked by the browser: click anywhere on the page, or allow autoplay for this site.') }}
             </div>
 
             <div class="inappnotification-tabs" role="tablist" :aria-label="t('Notification types')">
@@ -204,6 +222,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import NotificationItem from './NotificationItem.vue';
 import { useNotifications } from './composables/useNotifications.js';
 import { useSound } from './composables/useSound.js';
+import { useTabCoordinator } from './composables/useTabCoordinator.js';
 import { useMenuPosition } from './composables/useMenuPosition.js';
 import {
     SOURCE_GROUP_ORDER,
@@ -212,7 +231,6 @@ import {
     getDisplayTitle,
     getItemSourceLabel,
     badgeLabel,
-    computeNewUnreadChanges,
     sanitizeToastUrl,
     escapeHtml,
 } from './helpers.js';
@@ -227,10 +245,11 @@ const t = (key) => (Object.prototype.hasOwnProperty.call(props.labels, key) ? pr
 const { list, action } = useNotifications(props.config);
 const {
     soundMuted,
+    audioBlocked,
     setSoundMuted,
     playNotificationSound,
+    isAudioReady,
     unlockAudioContext,
-    bindAudioOwnership,
     bindUnlockHandlers,
     dispose: disposeSound,
 } = useSound();
@@ -242,6 +261,22 @@ const mutedTotal = ref(0);
 const loading = ref(false);
 const activeTab = ref('all');
 const hasFetchedOnce = ref(false);
+
+// One tab polls and shares, exactly one tab chimes (see useTabCoordinator).
+const coordinator = useTabCoordinator({
+    namespace: `inappnotification:${props.config.apiUrl || ''}:${Number(props.config.userId) || 0}`,
+    pollMs: Number(props.config.pollMs) || 10000,
+    onPoll: () => fetchList(),
+    onSnapshot: ({ data, changes }) => {
+        applyData(data);
+        hasFetchedOnce.value = true;
+        showNewNotificationsToast(changes.items, changes.delta);
+    },
+    onChime: () => playNotificationSound(),
+    canChime: () => isAudioReady(),
+    isMuted: () => soundMuted.value,
+});
+const coordination = coordinator.state;
 const selectedIds = ref(new Set());
 const openMenuId = ref(0);
 const bulkMenuOpen = ref(false);
@@ -250,8 +285,6 @@ const selectAllRef = ref(null);
 const bulkWrapRef = ref(null);
 const bulkMenuRef = ref(null);
 const { menuUp: bulkMenuUp, menuStyle: bulkMenuStyle, position: positionBulk, reset: resetBulk } = useMenuPosition();
-
-let pollTimer = 0;
 
 // --- computed ---
 const filteredItems = computed(() => (
@@ -355,30 +388,30 @@ function closeMenus() {
 }
 
 // --- data flow ---
+// Server data that reached this tab (first load, poll or action result): detect new notifications
+// against the baseline shared by all tabs, render, share with the other tabs, announce.
+// `requestedAt`: when the request started; a response overtaken by newer data is dropped.
+function receive(data, requestedAt, ignoreIds = []) {
+    const changes = coordinator.detectChanges(data.items, ignoreIds, requestedAt);
+    if (changes === null) {
+        return;
+    }
+    applyData(data);
+    hasFetchedOnce.value = true;
+    coordinator.share(data, changes, requestedAt);
+    showNewNotificationsToast(changes.items, changes.delta);
+    if (changes.delta > 0) {
+        coordinator.chime(changes);
+    }
+}
+
 async function fetchList() {
-    const previousItems = Array.isArray(items.value) ? items.value : [];
+    const requestedAt = Date.now();
     loading.value = true;
     try {
         const data = await list(15);
         if (data) {
-            const incoming = Array.isArray(data.items) ? data.items : [];
-            const unreadChanges = hasFetchedOnce.value
-                ? computeNewUnreadChanges(previousItems, incoming)
-                : { delta: 0, items: [] };
-
-            items.value = incoming;
-            unreadTotal.value = Number(data.unread_total || 0);
-            mutedTotal.value = Number(data.muted_total || 0);
-            syncSelectedIds();
-
-            if (hasFetchedOnce.value) {
-                showNewNotificationsToast(unreadChanges.items, unreadChanges.delta);
-                if (unreadChanges.delta > 0) {
-                    playNotificationSound();
-                }
-            } else {
-                hasFetchedOnce.value = true;
-            }
+            receive(data, requestedAt);
         }
     } finally {
         loading.value = false;
@@ -386,9 +419,12 @@ async function fetchList() {
 }
 
 async function doAction(name, body = {}) {
+    const requestedAt = Date.now();
     const data = await action(name, body);
     if (data) {
-        applyData(data);
+        // What this action changed itself (e.g. "mark as unread") is no new notification.
+        const ignoreIds = Array.isArray(body.ids) ? body.ids : (body.id ? [body.id] : []);
+        receive(data, requestedAt, ignoreIds);
         return true;
     }
     return false;
@@ -413,6 +449,12 @@ function setTab(key) {
 
 function onToggleSound() {
     setSoundMuted(!soundMuted.value);
+}
+
+// Always audible on click (a user gesture), also while muted: lets the user check volume and output.
+async function onTestSound() {
+    await unlockAudioContext();
+    await playNotificationSound(true);
 }
 
 async function onMarkAllRead() {
@@ -546,18 +588,18 @@ function showNewNotificationsToast(changes, newCount) {
 }
 
 // --- lifecycle ---
-onMounted(() => {
-    bindUnlockHandlers();
-    bindAudioOwnership();
-    fetchList();
-    pollTimer = window.setInterval(fetchList, Number(props.config.pollMs) || 10000);
+onMounted(async () => {
+    // Once audio is playable in this tab, it may become the tab that chimes.
+    bindUnlockHandlers(() => coordinator.claimSound());
+    // After a same-site navigation browsers usually allow audio without a new gesture: claim the
+    // role right away, so a navigated tab does not leave the chime to a tab that cannot play it.
+    unlockAudioContext();
+    await fetchList();
+    coordinator.start();
 });
 
 onUnmounted(() => {
-    if (pollTimer) {
-        window.clearInterval(pollTimer);
-        pollTimer = 0;
-    }
+    coordinator.destroy();
     disposeSound();
 });
 </script>

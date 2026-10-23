@@ -1,10 +1,9 @@
 <?php
 
 use Glpi\Application\Environment;
+use Glpi\Exception\Http\AccessDeniedHttpException;
 use GlpiPlugin\Inappnotification\Config\Settings;
 use GlpiPlugin\Inappnotification\Dev\SampleNotifications;
-
-include_once __DIR__ . '/../../../inc/includes.php';
 
 if (!class_exists(SampleNotifications::class)) {
     require_once __DIR__ . '/../src/Dev/SampleNotifications.php';
@@ -18,7 +17,7 @@ $settings = Settings::get();
 $switch_on = (int) ($settings['dev_test_panel'] ?? 0) === 1;
 $dev_env = Environment::get()->shouldEnableExtraDevAndDebugTools();
 if (!Session::haveRight('config', UPDATE) || (!$switch_on && !$dev_env)) {
-    Html::displayRightError();
+    throw new AccessDeniedHttpException();
 }
 
 $users_id = (int) Session::getLoginUserID();
@@ -54,7 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Session::addMessageAfterRedirect(__('Test notifications cleared.', 'inappnotification'), true, INFO);
             break;
     }
-    Html::redirect($_SERVER['PHP_SELF']);
+    // Not $_SERVER['PHP_SELF']: behind GLPI's front controller that is /index.php.
+    Html::redirect((string) ($GLOBALS['CFG_GLPI']['root_doc'] ?? '') . '/plugins/inappnotification/front/dev.php');
 }
 
 $root = (string) ($GLOBALS['CFG_GLPI']['root_doc'] ?? '');
@@ -114,5 +114,31 @@ echo "<a class='btn btn-outline-secondary' href='" . htmlescape($base . '/schedu
 echo "</div></div>";
 
 echo "</div></div>";
+
+// Send the actions in the background: a page reload would discard the user's click, and browsers
+// that require a gesture per page (e.g. Firefox) would then block the bell's chime for the
+// generated notifications until the next click.
+echo Html::scriptBlock(<<<'JS'
+document.querySelectorAll('form.inappnotification-dev-action').forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = form.querySelector('button');
+        button.disabled = true;
+        const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+        const token = typeof window.getAjaxCsrfToken === 'function' ? window.getAjaxCsrfToken() : '';
+        if (token) {
+            headers['X-Glpi-Csrf-Token'] = token;
+        }
+        try {
+            await fetch(window.location.href, { method: 'POST', body: new FormData(form), headers, redirect: 'manual' });
+        } finally {
+            button.disabled = false;
+            if (typeof window.displayAjaxMessageAfterRedirect === 'function') {
+                window.displayAjaxMessageAfterRedirect();
+            }
+        }
+    });
+});
+JS);
 
 Html::footer();

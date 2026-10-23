@@ -1,37 +1,26 @@
 <?php
 
-use GlpiPlugin\Inappnotification\AlertEntry;
+use Glpi\Exception\Http\AccessDeniedHttpException;
+use GlpiPlugin\Inappnotification\MutedAlertEntry;
 
-include_once __DIR__ . '/../../../inc/includes.php';
-
-if (!class_exists(AlertEntry::class)) {
-    require_once __DIR__ . '/../src/AlertEntry.php';
+if (!class_exists(MutedAlertEntry::class)) {
+    require_once __DIR__ . '/../src/MutedAlertEntry.php';
 }
 
 Session::checkLoginUser();
 
-if (!AlertEntry::canView()) {
-    Html::displayRightError();
+if (!MutedAlertEntry::canView()) {
+    throw new AccessDeniedHttpException();
 }
+
+global $DB;
 
 $root_doc = (string) ($GLOBALS['CFG_GLPI']['root_doc'] ?? '');
 $center_url = $root_doc . '/plugins/inappnotification/front/center.php';
-$table = AlertEntry::getTable();
-$db = $GLOBALS['DB'] ?? null;
-if (
-    !is_object($db)
-    && class_exists('DBConnection')
-    && method_exists('DBConnection', 'getReadConnection')
-) {
-    $db = DBConnection::getReadConnection();
-}
-
-$mute_fields_ready = is_object($db)
-    && method_exists($db, 'tableExists')
-    && method_exists($db, 'fieldExists')
-    && $db->tableExists($table)
-    && $db->fieldExists($table, 'is_suppressed')
-    && $db->fieldExists($table, 'snoozed_until');
+$table = MutedAlertEntry::getTable();
+$mute_fields_ready = $DB->tableExists($table)
+    && $DB->fieldExists($table, 'is_suppressed')
+    && $DB->fieldExists($table, 'snoozed_until');
 
 Html::header(__('Muted in-app notifications', 'inappnotification'), '', 'tools', 'inappnotification');
 
@@ -47,28 +36,8 @@ if (!$mute_fields_ready) {
     echo htmlescape(__('Muted notifications are not available yet. Please run the plugin update from GLPI plugins page.', 'inappnotification'));
     echo "</div>";
 } else {
-    Search::show(
-        AlertEntry::class,
-        [
-            'reset' => 'reset',
-            'sort'  => 6,
-            'order' => 'DESC',
-            'criteria' => [
-                [
-                    'field'      => 9,
-                    'searchtype' => 'equals',
-                    'value'      => 1,
-                ],
-                [
-                    'link'       => 'OR',
-                    'field'      => 10,
-                    'searchtype' => 'morethan',
-                    'value'      => 'NOW',
-                ],
-            ],
-        ],
-        [2, 3, 7, 4, 6, 9, 10]
-    );
+    // Muted filter, columns and sorting come from MutedAlertEntry (search restriction + defaults).
+    Search::show(MutedAlertEntry::class);
 }
 
 Html::footer();

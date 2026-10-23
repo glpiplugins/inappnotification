@@ -123,10 +123,20 @@ class ScheduledGlobalEntry extends CommonDBTM implements ExtraVisibilityCriteria
     }
 
     #[\Override]
+    public static function getSearchURL($full = true)
+    {
+        global $CFG_GLPI;
+
+        // The plugin's list page (with its action buttons), not GLPI's generic list route, so the
+        // search form, sorting and paging stay there.
+        return ($full ? (string) ($CFG_GLPI['root_doc'] ?? '') : '') . '/plugins/inappnotification/front/scheduled_all.php';
+    }
+
+    #[\Override]
     public static function getDefaultSearchRequest(): array
     {
         return [
-            'forcedisplay' => [1, 2, 7, 3, 4, 5, 6],
+            'forcetoview'  => [1, 2, 7, 3, 4, 5, 6],
             'sort'         => 1,
             'order'        => 'ASC',
         ];
@@ -156,7 +166,7 @@ class ScheduledGlobalEntry extends CommonDBTM implements ExtraVisibilityCriteria
     }
 
     #[\Override]
-    public function getName($with_comment = 0)
+    public function getName($options = [])
     {
         return (string) ($this->fields['item_label'] ?? '');
     }

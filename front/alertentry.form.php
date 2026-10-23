@@ -3,8 +3,6 @@
 use GlpiPlugin\Inappnotification\AlertEntry;
 use GlpiPlugin\Inappnotification\Service\AlertStore;
 
-include_once __DIR__ . '/../../../inc/includes.php';
-
 if (!class_exists(AlertStore::class)) {
     require_once __DIR__ . '/../src/Service/AlertStore.php';
 }

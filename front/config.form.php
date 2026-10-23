@@ -1,21 +1,21 @@
 <?php
 
+use Glpi\Exception\Http\AccessDeniedHttpException;
 use GlpiPlugin\Inappnotification\Config\Settings;
-
-include_once __DIR__ . '/../../../inc/includes.php';
 
 if (!class_exists(Settings::class)) {
     require_once __DIR__ . '/../src/Config/Settings.php';
 }
 
 if (!Session::haveRight('config', UPDATE)) {
-    Html::displayRightError();
+    throw new AccessDeniedHttpException();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Settings::saveFromRequest($_POST);
     Session::addMessageAfterRedirect(__('Configuration updated'), true, INFO);
-    Html::redirect($_SERVER['PHP_SELF']);
+    // Not $_SERVER['PHP_SELF']: behind GLPI's front controller that is /index.php.
+    Html::redirect((string) ($GLOBALS['CFG_GLPI']['root_doc'] ?? '') . '/plugins/inappnotification/front/config.form.php');
 }
 
 $settings = Settings::get();

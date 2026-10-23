@@ -184,18 +184,39 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
         return $tab;
     }
 
+    /**
+     * The user's own entries are visible whatever entity is active: per-user scoping is done by the
+     * search restriction in hook.php, and `entities_id` only records the source item's entity.
+     * Otherwise GLPI search hides them in a sub-entity while the bell still counts them.
+     */
+    #[\Override]
+    public function isEntityAssign()
+    {
+        return false;
+    }
+
+    #[\Override]
+    public static function getSearchURL($full = true)
+    {
+        global $CFG_GLPI;
+
+        // The plugin's list page (with its action buttons), not GLPI's generic list route, so the
+        // search form, sorting and paging stay there.
+        return ($full ? (string) ($CFG_GLPI['root_doc'] ?? '') : '') . '/plugins/inappnotification/front/center.php';
+    }
+
     #[\Override]
     public static function getDefaultSearchRequest(): array
     {
         return [
-            'forcedisplay' => [2, 3, 7, 4, 5, 6],
+            'forcetoview'  => [2, 3, 7, 4, 5, 6],
             'sort'         => 6, // last_triggered_at
             'order'        => 'DESC',
         ];
     }
 
     #[\Override]
-    public function getName($with_comment = 0)
+    public function getName($options = [])
     {
         return (string) ($this->fields['alert_name'] ?? '');
     }
@@ -243,23 +264,23 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
             foreach ($ids as $id) {
                 $id = (int) $id;
                 if ($id <= 0) {
-                    $ma->itemDone(self::getType(), $id, MassiveAction::ACTION_KO);
+                    $ma->itemDone($item::getType(), $id, MassiveAction::ACTION_KO);
                     continue;
                 }
 
                 $entry = new self();
                 if (!$entry->getFromDB($id)) {
-                    $ma->itemDone(self::getType(), $id, MassiveAction::ACTION_KO);
+                    $ma->itemDone($item::getType(), $id, MassiveAction::ACTION_KO);
                     continue;
                 }
 
                 if ((int) ($entry->fields['users_id'] ?? 0) !== $users_id) {
-                    $ma->itemDone(self::getType(), $id, MassiveAction::ACTION_NORIGHT);
+                    $ma->itemDone($item::getType(), $id, MassiveAction::ACTION_NORIGHT);
                     continue;
                 }
 
                 AlertStore::reactivate($users_id, $id);
-                $ma->itemDone(self::getType(), $id, MassiveAction::ACTION_OK);
+                $ma->itemDone($item::getType(), $id, MassiveAction::ACTION_OK);
             }
             return;
         }
