@@ -5,7 +5,7 @@
 top bar, and server-rendered pages for searchable history, upcoming and muted items.
 
 - Requires GLPI `12.0.x` (`>= 12.0.0`, `<= 12.0.99`) and PHP 8.5 (official `glpi/glpi:12.0.0` image).
-  This is the `glpi12` branch; GLPI 11 is maintained on `main` (1.x).
+  GLPI 11 is maintained on the `glpi11` branch (1.x).
 - PHP namespace: `GlpiPlugin\Inappnotification\`.
 - Runs against an **unmodified** `glpi-core` (no core patches required).
 
