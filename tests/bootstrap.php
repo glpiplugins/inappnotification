@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-// Unit tests run on the host against glpi-core's Composer autoloader (which can load
-// GLPI core classes via its classmap). Only pure, DB-free logic is exercised here.
+// Unit tests run without a database. GLPI core classes come from the GLPI the tests run in
+// (official image: the plugin mounted under /var/www/glpi/plugins, see tools/check.sh), else from
+// the glpi-core checkout next to the plugin. Its autoloader is registered in front of the one of
+// the PHPUnit installation, so the plugin's item classes load against the matching core.
 $pluginRoot = dirname(__DIR__);
-$coreVendor = dirname($pluginRoot) . '/glpi-core/vendor/autoload.php';
+$glpiDir = getenv('GLPI_DIR') ?: '/var/www/glpi';
+$coreVendor = is_file($glpiDir . '/vendor/autoload.php')
+    ? $glpiDir . '/vendor/autoload.php'
+    : dirname($pluginRoot) . '/glpi-core/vendor/autoload.php';
 if (is_file($coreVendor)) {
     require_once $coreVendor;
 }

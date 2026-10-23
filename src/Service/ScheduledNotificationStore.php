@@ -46,8 +46,7 @@ class ScheduledNotificationStore
      *   item_url:string,
      *   detail:string,
      *   entities_id:int,
-     *   recipient_users_id?:int,
-     *   recipient_label?:string
+     *   recipients:array<int, string>
      * }>
      */
     public static function getUpcoming(int $limit = self::DEFAULT_LIMIT): array
@@ -104,22 +103,22 @@ class ScheduledNotificationStore
 
         $count = 0;
         foreach ($rows as $row) {
-            $scheduled_at = trim((string) ($row['scheduled_at'] ?? ''));
+            $scheduled_at = trim($row['scheduled_at']);
             if ($scheduled_at === '') {
                 continue;
             }
 
-            $kind = trim((string) ($row['kind'] ?? ''));
-            $itemtype = trim((string) ($row['itemtype'] ?? ''));
-            $items_id = (int) ($row['items_id'] ?? 0);
-            $detail = trim((string) ($row['detail'] ?? ''));
-            $entities_id = (int) ($row['entities_id'] ?? 0);
+            $kind = trim($row['kind']);
+            $itemtype = trim($row['itemtype']);
+            $items_id = $row['items_id'];
+            $detail = trim($row['detail']);
+            $entities_id = $row['entities_id'];
             $entity_label = self::resolveEntityLabel($entities_id);
 
             // Fan out one global row per actual recipient. Items whose recipients cannot be
             // resolved get a single recipient_users_id=0 row that is only shown in the all-users
             // overview — it is never projected into a personal upcoming list.
-            $recipients = is_array($row['recipients'] ?? null) ? $row['recipients'] : [];
+            $recipients = $row['recipients'];
             if ($recipients === []) {
                 $recipients = [0 => __('Recipients from notification targets', 'inappnotification')];
             }
@@ -146,12 +145,12 @@ class ScheduledNotificationStore
                     'recipient_users_id' => $recipient_users_id,
                     'recipient_label' => $recipient_label,
                     'kind' => $kind,
-                    'kind_label' => (string) ($row['kind_label'] ?? ''),
+                    'kind_label' => $row['kind_label'],
                     'scheduled_at' => $scheduled_at,
                     'itemtype' => $itemtype,
                     'items_id' => $items_id,
-                    'item_label' => (string) ($row['item_label'] ?? ''),
-                    'item_url' => (string) ($row['item_url'] ?? ''),
+                    'item_label' => $row['item_label'],
+                    'item_url' => $row['item_url'],
                     'detail' => $detail,
                     'entities_id' => $entities_id,
                     'entity_label' => $entity_label,
@@ -487,7 +486,7 @@ class ScheduledNotificationStore
         if ($item instanceof CommonDBChild || $item instanceof CommonITILTask) {
             $parent = $item->getItem();
             if ($parent instanceof CommonDBTM) {
-                if (method_exists($parent, 'canViewItem') && !$parent->canViewItem()) {
+                if (!$parent->canViewItem()) {
                     return null;
                 }
                 return $parent;
@@ -536,7 +535,7 @@ class ScheduledNotificationStore
             return null;
         }
 
-        if (method_exists($item, 'canViewItem') && !$item->canViewItem()) {
+        if (!$item->canViewItem()) {
             self::$item_cache[$cache_key] = null;
             return null;
         }
@@ -557,18 +556,13 @@ class ScheduledNotificationStore
 
     private static function buildItemUrl(CommonDBTM $item): string
     {
-        $url = '';
-        if (method_exists($item, 'getLinkURL')) {
-            $url = trim((string) $item->getLinkURL());
-        }
-
+        $url = trim((string) $item->getLinkURL());
         if ($url !== '') {
             return $url;
         }
 
         $itemtype = $item::getType();
         if (method_exists($itemtype, 'getFormURLWithID')) {
-            /** @phpstan-ignore-next-line */
             return (string) $itemtype::getFormURLWithID((int) $item->getID());
         }
 
@@ -577,7 +571,7 @@ class ScheduledNotificationStore
 
     private static function resolveEntityId(CommonDBTM $item): int
     {
-        if (method_exists($item, 'isEntityAssign') && $item->isEntityAssign()) {
+        if ($item->isEntityAssign()) {
             return (int) $item->getEntityID();
         }
 

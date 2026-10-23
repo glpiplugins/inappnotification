@@ -1,12 +1,10 @@
 import { ref } from 'vue';
 
-// Cross-tab notification sound: only one tab (the "audio owner") plays the chime,
-// elected via localStorage + heartbeat. Mute state is shared across tabs.
-// Ported 1:1 from the legacy vanilla implementation.
+// Notification sound of the bell: mute state (shared by all tabs via localStorage), unlocking the
+// Web Audio context on a user gesture (browsers block audio before that) and the chime itself.
+// Which tab plays the chime is decided by useTabCoordinator.
 const SOUND_MUTE_STORAGE_KEY = 'inappnotification_sound_muted';
-const AUDIO_OWNER_STORAGE_KEY = 'inappnotification_audio_owner';
-const AUDIO_OWNER_HEARTBEAT_MS = 3000;
-const AUDIO_OWNER_STALE_MS = 10000;
+const PENDING_CHIME_MS = 2 * 60 * 1000;
 
 function readStoredSoundMuted() {
     try {
@@ -24,173 +22,17 @@ function writeStoredSoundMuted(muted) {
     }
 }
 
-function hasUsableLocalStorage() {
-    try {
-        const probeKey = '__np_storage_probe__';
-        window.localStorage.setItem(probeKey, '1');
-        window.localStorage.removeItem(probeKey);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-function buildTabId() {
-    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-        return window.crypto.randomUUID();
-    }
-    return `np-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-}
-
 export function useSound() {
     const soundMuted = ref(readStoredSoundMuted());
-    const STORAGE_AVAILABLE = hasUsableLocalStorage();
 
     const audioState = {
         context: null,
         unlockBound: false,
-        ownershipBound: false,
-        heartbeatTimer: 0,
-        isOwner: false,
-        tabId: buildTabId(),
     };
-
-    const readAudioOwnerRecord = function () {
-        if (!STORAGE_AVAILABLE) {
-            return null;
-        }
-        try {
-            const raw = window.localStorage.getItem(AUDIO_OWNER_STORAGE_KEY);
-            if (!raw) {
-                return null;
-            }
-            const parsed = JSON.parse(raw);
-            const tabId = String(parsed.tabId || '').trim();
-            const ts = Number(parsed.ts || 0);
-            const priority = Number(parsed.priority || 0);
-            if (tabId === '' || !Number.isFinite(ts)) {
-                return null;
-            }
-            return { tabId, ts, priority: Number.isFinite(priority) ? priority : 0 };
-        } catch (e) {
-            return null;
-        }
-    };
-
-    const writeAudioOwnerRecord = function (record) {
-        if (!STORAGE_AVAILABLE) {
-            return;
-        }
-        try {
-            window.localStorage.setItem(AUDIO_OWNER_STORAGE_KEY, JSON.stringify(record));
-        } catch (e) {
-            // Ignore storage errors.
-        }
-    };
-
-    const removeAudioOwnerRecord = function () {
-        if (!STORAGE_AVAILABLE) {
-            return;
-        }
-        try {
-            window.localStorage.removeItem(AUDIO_OWNER_STORAGE_KEY);
-        } catch (e) {
-            // Ignore storage errors.
-        }
-    };
-
-    const getAudioOwnerPriority = function () {
-        if (document.visibilityState !== 'visible') {
-            return 0;
-        }
-        if (typeof document.hasFocus === 'function' && document.hasFocus()) {
-            return 2;
-        }
-        return 1;
-    };
-
-    const isAudioOwnerRecordStale = function (record, now = Date.now()) {
-        if (!record || !Number.isFinite(Number(record.ts))) {
-            return true;
-        }
-        return (now - Number(record.ts)) > AUDIO_OWNER_STALE_MS;
-    };
-
-    const updateOwnAudioOwnerRecord = function (now = Date.now()) {
-        writeAudioOwnerRecord({ tabId: audioState.tabId, ts: now, priority: getAudioOwnerPriority() });
-    };
-
-    const releaseAudioOwnership = function () {
-        if (!STORAGE_AVAILABLE) {
-            audioState.isOwner = false;
-            return;
-        }
-        const current = readAudioOwnerRecord();
-        if (current && current.tabId === audioState.tabId) {
-            removeAudioOwnerRecord();
-        }
-        audioState.isOwner = false;
-    };
-
-    const claimAudioOwnership = function (force = false) {
-        if (soundMuted.value) {
-            audioState.isOwner = false;
-            return false;
-        }
-        if (!STORAGE_AVAILABLE) {
-            audioState.isOwner = true;
-            return true;
-        }
-
-        const now = Date.now();
-        const current = readAudioOwnerRecord();
-        const currentId = current ? String(current.tabId || '') : '';
-        const currentPriority = current ? Number(current.priority || 0) : -1;
-        const stale = isAudioOwnerRecordStale(current, now);
-        const myPriority = getAudioOwnerPriority();
-
-        let shouldTake = false;
-        if (!current || stale || currentId === audioState.tabId) {
-            shouldTake = true;
-        } else if (force && myPriority > 0) {
-            shouldTake = true;
-        } else if (myPriority > currentPriority && myPriority > 0) {
-            shouldTake = true;
-        }
-
-        if (shouldTake) {
-            updateOwnAudioOwnerRecord(now);
-        }
-
-        const latest = readAudioOwnerRecord();
-        audioState.isOwner = Boolean(
-            latest && latest.tabId === audioState.tabId && !isAudioOwnerRecordStale(latest, now)
-        );
-        return audioState.isOwner;
-    };
-
-    const refreshAudioOwnership = function (force = false) {
-        if (soundMuted.value) {
-            releaseAudioOwnership();
-            return false;
-        }
-        if (audioState.isOwner) {
-            updateOwnAudioOwnerRecord();
-            return claimAudioOwnership(force);
-        }
-        return claimAudioOwnership(force);
-    };
-
-    const shouldPlaySoundInThisTab = function () {
-        if (soundMuted.value) {
-            return false;
-        }
-        const isFocusedTab = (
-            document.visibilityState === 'visible'
-            && (typeof document.hasFocus !== 'function' || document.hasFocus())
-        );
-        return refreshAudioOwnership(isFocusedTab);
-    };
+    // A chime the browser blocked (no user gesture on this page yet): shown as a hint, and played
+    // on the next click or key press if that comes within PENDING_CHIME_MS.
+    const audioBlocked = ref(false);
+    let pendingChimeAt = 0;
 
     const getAudioContext = function () {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -205,6 +47,10 @@ export function useSound() {
             }
         }
         return audioState.context;
+    };
+
+    const isAudioRunning = function (context) {
+        return context.state === 'running' || context.state === 'interrupted';
     };
 
     const unlockAudioContext = async function () {
@@ -222,176 +68,143 @@ export function useSound() {
                 return false;
             }
         }
-        return context.state === 'running' || context.state === 'interrupted';
+        return isAudioRunning(context);
     };
 
-    const playNotificationSound = async function () {
-        if (!shouldPlaySoundInThisTab()) {
-            return;
+    // Play the chime in this tab. Returns false if the browser blocks audio here.
+    // `force`: play even while muted (sound test).
+    const playNotificationSound = async function (force = false) {
+        if (soundMuted.value && !force) {
+            return true;
         }
         const context = getAudioContext();
         if (!context) {
-            return;
+            return false;
+        }
+        if (context.state === 'suspended') {
+            try {
+                await context.resume();
+            } catch (e) {
+                // Blocked by the autoplay policy, handled below.
+            }
+        }
+        if (!isAudioRunning(context)) {
+            audioBlocked.value = true;
+            pendingChimeAt = Date.now();
+            return false;
         }
         try {
-            if (context.state === 'suspended') {
-                await context.resume();
-            }
-            if (context.state !== 'running' && context.state !== 'interrupted') {
-                return;
-            }
 
+            // Two-note chime, C5 then G5: mid pitch, brightened by overtones that fade faster than
+            // the fundamental (bell-like rather than a beep). Peaks at about 0.7 of full scale.
             const now = context.currentTime;
-            const mainOscillator = context.createOscillator();
-            const mainGain = context.createGain();
-            const accentOscillator = context.createOscillator();
-            const accentGain = context.createGain();
-
-            // Brighter, concise chime without harsh high-pitch beeping.
-            mainOscillator.type = 'triangle';
-            mainOscillator.frequency.setValueAtTime(987.77, now);
-            mainOscillator.frequency.exponentialRampToValueAtTime(830.61, now + 0.18);
-            mainGain.gain.setValueAtTime(0.0001, now);
-            mainGain.gain.exponentialRampToValueAtTime(0.05, now + 0.02);
-            mainGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
-
-            accentOscillator.type = 'sine';
-            accentOscillator.frequency.setValueAtTime(1318.51, now);
-            accentOscillator.frequency.exponentialRampToValueAtTime(1046.5, now + 0.1);
-            accentGain.gain.setValueAtTime(0.0001, now);
-            accentGain.gain.exponentialRampToValueAtTime(0.015, now + 0.01);
-            accentGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-
-            mainOscillator.connect(mainGain);
-            accentOscillator.connect(accentGain);
-            mainGain.connect(context.destination);
-            accentGain.connect(context.destination);
-
-            mainOscillator.start(now);
-            accentOscillator.start(now);
-            mainOscillator.stop(now + 0.26);
-            accentOscillator.stop(now + 0.14);
+            const partials = [[1, 1, 'triangle'], [2, 0.45, 'sine'], [3, 0.2, 'sine'], [4, 0.1, 'sine']];
+            const tone = (frequency, start, duration, peak) => {
+                partials.forEach(([multiple, share, type], index) => {
+                    const length = duration / (1 + index * 0.6);
+                    const oscillator = context.createOscillator();
+                    const gain = context.createGain();
+                    oscillator.type = type;
+                    oscillator.frequency.setValueAtTime(frequency * multiple, start);
+                    gain.gain.setValueAtTime(0.0001, start);
+                    gain.gain.exponentialRampToValueAtTime(peak * share, start + 0.012);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+                    oscillator.connect(gain);
+                    gain.connect(context.destination);
+                    oscillator.start(start);
+                    oscillator.stop(start + length + 0.02);
+                });
+            };
+            tone(523.25, now, 0.7, 0.42);
+            tone(783.99, now + 0.2, 0.85, 0.38);
         } catch (e) {
             // Ignore audio playback errors (autoplay restrictions, etc.).
+            return false;
         }
+        audioBlocked.value = false;
+        pendingChimeAt = 0;
+        // Hook for tests and integrations: the chime was played in this tab.
+        window.dispatchEvent(new CustomEvent('inappnotification:chime'));
+        return true;
     };
+
+    // Whether the chime can play in this tab right now.
+    const isAudioReady = function () {
+        return !soundMuted.value && audioState.context !== null && isAudioRunning(audioState.context);
+    };
+
+    let onUnlocked = null;
 
     const setSoundMuted = function (muted) {
         soundMuted.value = Boolean(muted);
         writeStoredSoundMuted(soundMuted.value);
-        if (soundMuted.value) {
-            releaseAudioOwnership();
-        } else {
-            refreshAudioOwnership(true);
-            unlockAudioContext();
+        if (!soundMuted.value) {
+            unlockAndReport();
+        }
+    };
+
+    const unlockAndReport = async function () {
+        if (!(await unlockAudioContext())) {
+            return;
+        }
+        audioBlocked.value = false;
+        if (pendingChimeAt && Date.now() - pendingChimeAt < PENDING_CHIME_MS) {
+            pendingChimeAt = 0;
+            playNotificationSound();
+        }
+        if (onUnlocked) {
+            onUnlocked();
         }
     };
 
     // Named handler references so they can be removed again in dispose().
-    let onVisibilityChange = null;
-    let onWindowFocus = null;
-    let onBeforeUnload = null;
     let onStorage = null;
-    let onUnlock = null;
+    let onGesture = null;
 
-    const bindAudioOwnership = function () {
-        if (audioState.ownershipBound) {
-            return;
-        }
-        audioState.ownershipBound = true;
-
-        refreshAudioOwnership(true);
-
-        audioState.heartbeatTimer = window.setInterval(() => {
-            refreshAudioOwnership(false);
-        }, AUDIO_OWNER_HEARTBEAT_MS);
-
-        onVisibilityChange = () => {
-            refreshAudioOwnership(document.visibilityState === 'visible');
-        };
-        onWindowFocus = () => {
-            refreshAudioOwnership(true);
-        };
-        onBeforeUnload = () => {
-            releaseAudioOwnership();
-        };
-
-        document.addEventListener('visibilitychange', onVisibilityChange);
-        window.addEventListener('focus', onWindowFocus);
-        window.addEventListener('beforeunload', onBeforeUnload);
-
-        if (STORAGE_AVAILABLE) {
-            onStorage = (event) => {
-                if (event.key === SOUND_MUTE_STORAGE_KEY) {
-                    // Reactive ref update re-renders the toggle automatically.
-                    soundMuted.value = readStoredSoundMuted();
-                    if (soundMuted.value) {
-                        releaseAudioOwnership();
-                    } else {
-                        refreshAudioOwnership(true);
-                        unlockAudioContext();
-                    }
-                    return;
-                }
-                if (event.key === AUDIO_OWNER_STORAGE_KEY && !soundMuted.value) {
-                    refreshAudioOwnership(false);
-                }
-            };
-            window.addEventListener('storage', onStorage);
-        }
-    };
-
-    const bindUnlockHandlers = function () {
+    // Unlock the audio on the first user gestures; `callback` runs once audio is playable here.
+    const bindUnlockHandlers = function (callback) {
         if (audioState.unlockBound) {
             return;
         }
         audioState.unlockBound = true;
-        onUnlock = () => {
-            unlockAudioContext();
+        onUnlocked = callback || null;
+        onGesture = () => {
+            unlockAndReport();
         };
-        document.addEventListener('pointerdown', onUnlock, { passive: true });
-        document.addEventListener('keydown', onUnlock);
+        document.addEventListener('pointerdown', onGesture, { passive: true });
+        document.addEventListener('keydown', onGesture);
+
+        onStorage = (event) => {
+            if (event.key === SOUND_MUTE_STORAGE_KEY) {
+                // Mute toggled in another tab; the reactive ref re-renders the toggle.
+                soundMuted.value = readStoredSoundMuted();
+            }
+        };
+        window.addEventListener('storage', onStorage);
     };
 
-    // Remove every global listener / timer this composable installed and release ownership.
-    // Called from the component's onUnmounted so nothing leaks if the bell is ever torn down.
+    // Remove every global listener this composable installed (called from onUnmounted).
     const dispose = function () {
-        if (audioState.heartbeatTimer) {
-            window.clearInterval(audioState.heartbeatTimer);
-            audioState.heartbeatTimer = 0;
-        }
-        if (onVisibilityChange) {
-            document.removeEventListener('visibilitychange', onVisibilityChange);
-            onVisibilityChange = null;
-        }
-        if (onWindowFocus) {
-            window.removeEventListener('focus', onWindowFocus);
-            onWindowFocus = null;
-        }
-        if (onBeforeUnload) {
-            window.removeEventListener('beforeunload', onBeforeUnload);
-            onBeforeUnload = null;
+        if (onGesture) {
+            document.removeEventListener('pointerdown', onGesture);
+            document.removeEventListener('keydown', onGesture);
+            onGesture = null;
         }
         if (onStorage) {
             window.removeEventListener('storage', onStorage);
             onStorage = null;
         }
-        if (onUnlock) {
-            document.removeEventListener('pointerdown', onUnlock);
-            document.removeEventListener('keydown', onUnlock);
-            onUnlock = null;
-        }
-        releaseAudioOwnership();
-        audioState.ownershipBound = false;
+        onUnlocked = null;
         audioState.unlockBound = false;
     };
 
     return {
         soundMuted,
+        audioBlocked,
         setSoundMuted,
         playNotificationSound,
-        unlockAudioContext,
-        bindAudioOwnership,
+        isAudioReady,
+        unlockAudioContext: unlockAndReport,
         bindUnlockHandlers,
         dispose,
     };

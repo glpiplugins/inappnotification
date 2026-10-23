@@ -2,8 +2,10 @@
 
 use GlpiPlugin\Inappnotification\Access;
 use GlpiPlugin\Inappnotification\AlertEntry;
+use GlpiPlugin\Inappnotification\MutedAlertEntry;
 use GlpiPlugin\Inappnotification\ScheduledEntry;
 use GlpiPlugin\Inappnotification\ScheduledGlobalEntry;
+use GlpiPlugin\Inappnotification\Service\AlertStore;
 
 if (!defined('GLPI_ROOT')) {
     die("Sorry. You can't access this file directly");
@@ -19,11 +21,11 @@ if (!defined('GLPI_ROOT')) {
  *    (ScheduledGlobalEntry with the "view all upcoming" right),
  *  - null when the itemtype is not handled by this plugin.
  *
- * @return array<string,int>|null
+ * @return array<int|string,mixed>|null
  */
 function plugin_inappnotification_restriction_where(string $itemtype): ?array
 {
-    if ($itemtype === AlertEntry::class) {
+    if ($itemtype === AlertEntry::class || $itemtype === MutedAlertEntry::class) {
         $table = AlertEntry::getTable();
     } elseif ($itemtype === ScheduledEntry::class) {
         $table = ScheduledEntry::getTable();
@@ -37,9 +39,17 @@ function plugin_inappnotification_restriction_where(string $itemtype): ?array
     }
 
     $users_id = (int) Session::getLoginUserID();
-    return $users_id > 0
-        ? [$table . '.users_id' => $users_id]
-        : [$table . '.id' => 0];
+    if ($users_id <= 0) {
+        return [$table . '.id' => 0];
+    }
+
+    $where = [$table . '.users_id' => $users_id];
+    if ($itemtype === MutedAlertEntry::class) {
+        // The muted list is a fixed subset, not a removable search criterion.
+        $where[] = AlertStore::getMutedCriteria($table);
+    }
+
+    return $where;
 }
 
 /**
@@ -47,7 +57,7 @@ function plugin_inappnotification_restriction_where(string $itemtype): ?array
  * convention (Hooks::AUTO_ADD_DEFAULT_WHERE) for the plugin's own itemtypes. This is what keeps
  * notification rows scoped to the current user; do not remove it (search data leak otherwise).
  *
- * @return array<string,int>
+ * @return array<int|string,mixed>
  */
 function plugin_inappnotification_addDefaultWhere(string $itemtype): array
 {

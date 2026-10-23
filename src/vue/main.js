@@ -31,8 +31,16 @@ import BellApp from './BellApp.vue';
 
     function findUserMenu() {
         const pageHeader = document.querySelector('header.navbar.d-print-none');
-        return (pageHeader ? pageHeader.querySelector('.navbar-nav.flex-row.order-md-last.user-menu') : null)
-            || (pageHeader ? pageHeader.querySelector('.user-menu') : null);
+        if (!pageHeader) {
+            return null;
+        }
+        // The header can contain the user menu twice, e.g. in the simplified interface a mobile-only
+        // copy (inside .d-lg-none) comes first: use the one visible at the current width.
+        const candidates = Array.from(pageHeader.querySelectorAll('.user-menu'));
+        return candidates.find((menu) => menu.getClientRects().length > 0)
+            || candidates.find((menu) => !menu.closest('.d-lg-none'))
+            || candidates[0]
+            || null;
     }
 
     function mountBell() {

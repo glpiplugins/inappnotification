@@ -1,5 +1,6 @@
 <?php
 
+use Glpi\Cache\CacheManager;
 use Glpi\Plugin\Hooks;
 use GlpiPlugin\Inappnotification\Access;
 use GlpiPlugin\Inappnotification\AlertEntry;
@@ -11,7 +12,7 @@ if (!defined('GLPI_ROOT')) {
     die("Sorry. You can't access this file directly");
 }
 
-define('PLUGIN_INAPPNOTIFICATION_VERSION', '1.2.3');
+define('PLUGIN_INAPPNOTIFICATION_VERSION', '1.3.3');
 
 function plugin_version_inappnotification(): array
 {
@@ -40,13 +41,9 @@ function plugin_init_inappnotification(): void
         __('InAppNotification (In-app)', 'inappnotification'),
         'inappnotification'
     );
-    plugin_inappnotification_ensure_core_mode_config();
-    if (class_exists(Settings::class)) {
-        Settings::ensureDefaults();
-    }
-    if (class_exists(Access::class)) {
-        Access::ensureProfileRightDefinition();
-    }
+    // No DB work here: plugin_init runs on every request, including each poll of the bell. Settings
+    // defaults, the profile right, the core "notifications_inapp" switch and the cron task are set up
+    // by the install/update (Settings::get() also fills in missing defaults on first use).
 
     $PLUGIN_HOOKS['csrf_compliant']['inappnotification'] = true;
 
@@ -72,9 +69,6 @@ function plugin_init_inappnotification(): void
     if ($boot_header_tags !== []) {
         $PLUGIN_HOOKS[Hooks::ADD_HEADER_TAG]['inappnotification'] = $boot_header_tags;
     }
-
-    // Ensure the upcoming-notifications cron exists (self-heals already-installed instances).
-    plugin_inappnotification_register_cron();
 }
 
 /**
@@ -90,7 +84,8 @@ function plugin_inappnotification_bell_labels(): array
         'Unread', 'Recently read', 'Notification Center', 'unread', 'All caught up', 'Sound off', 'Sound on',
         'Enable notification sound', 'Mute notification sound', 'Mark all as read', 'Select item', 'Actions',
         'Mark as read', 'Mark as unread', 'Snooze 1 day', 'Suppress', 'Select all', 'Open list', 'Muted items',
-        'Notification', 'more notifications', 'Open notification list',
+        'Notification', 'more notifications', 'Open notification list', 'Notifications',
+        'Test sound', 'Sound blocked by the browser: click anywhere on the page, or allow autoplay for this site.',
     ];
 
     $labels = [];
@@ -114,14 +109,18 @@ function plugin_inappnotification_header_tags(): array
     }
 
     global $CFG_GLPI;
-    $base = (string) ($CFG_GLPI['root_doc'] ?? '') . '/plugins/inappnotification/front';
+    $plugin_root = (string) ($CFG_GLPI['root_doc'] ?? '') . '/plugins/inappnotification';
+    $base = $plugin_root . '/front';
 
     $boot = [
         'config' => [
-            'apiUrl'    => $base . '/notifications.php',
+            // NotificationController: GET = list, POST <apiUrl>/<action> = action.
+            'apiUrl'    => $plugin_root . '/Notifications',
             'centerUrl' => $base . '/center.php',
             'mutedUrl'  => $base . '/muted.php',
             'pollMs'    => 10000,
+            // Scopes the cross-tab coordination (roles, shared baseline) to the logged-in user.
+            'userId'    => (int) Session::getLoginUserID(),
         ],
         'labels' => plugin_inappnotification_bell_labels(),
     ];
@@ -239,10 +238,10 @@ function plugin_inappnotification_install(): bool
             `unread_count` INT UNSIGNED NOT NULL DEFAULT 1,
             `is_read` TINYINT(1) NOT NULL DEFAULT 0,
             `is_suppressed` TINYINT(1) NOT NULL DEFAULT 0,
-            `snoozed_until` DATETIME DEFAULT NULL,
-            `last_triggered_at` DATETIME DEFAULT NULL,
-            `date_creation` DATETIME DEFAULT NULL,
-            `date_mod` DATETIME DEFAULT NULL,
+            `snoozed_until` TIMESTAMP NULL DEFAULT NULL,
+            `last_triggered_at` TIMESTAMP NULL DEFAULT NULL,
+            `date_creation` TIMESTAMP NULL DEFAULT NULL,
+            `date_mod` TIMESTAMP NULL DEFAULT NULL,
             PRIMARY KEY (`id`),
             UNIQUE KEY `uniq_user_fingerprint` (`users_id`, `alert_fingerprint`),
             KEY `idx_user_read_date` (`users_id`, `is_read`, `last_triggered_at`),
@@ -260,7 +259,7 @@ function plugin_inappnotification_install(): bool
             `recipient_label` VARCHAR(255) NOT NULL DEFAULT '',
             `kind` VARCHAR(64) NOT NULL DEFAULT '',
             `kind_label` VARCHAR(255) NOT NULL DEFAULT '',
-            `scheduled_at` DATETIME DEFAULT NULL,
+            `scheduled_at` TIMESTAMP NULL DEFAULT NULL,
             `itemtype` VARCHAR(190) NOT NULL DEFAULT '',
             `items_id` INT UNSIGNED NOT NULL DEFAULT 0,
             `item_label` VARCHAR(255) NOT NULL DEFAULT '',
@@ -269,8 +268,8 @@ function plugin_inappnotification_install(): bool
             `entities_id` INT UNSIGNED NOT NULL DEFAULT 0,
             `entity_label` VARCHAR(255) NOT NULL DEFAULT '',
             `fingerprint` VARCHAR(190) NOT NULL DEFAULT '',
-            `date_creation` DATETIME DEFAULT NULL,
-            `date_mod` DATETIME DEFAULT NULL,
+            `date_creation` TIMESTAMP NULL DEFAULT NULL,
+            `date_mod` TIMESTAMP NULL DEFAULT NULL,
             PRIMARY KEY (`id`),
             UNIQUE KEY `uniq_user_fingerprint` (`users_id`, `fingerprint`),
             KEY `idx_user_scheduled` (`users_id`, `scheduled_at`),
@@ -286,7 +285,7 @@ function plugin_inappnotification_install(): bool
             `recipient_label` VARCHAR(255) NOT NULL DEFAULT '',
             `kind` VARCHAR(64) NOT NULL DEFAULT '',
             `kind_label` VARCHAR(255) NOT NULL DEFAULT '',
-            `scheduled_at` DATETIME DEFAULT NULL,
+            `scheduled_at` TIMESTAMP NULL DEFAULT NULL,
             `itemtype` VARCHAR(190) NOT NULL DEFAULT '',
             `items_id` INT UNSIGNED NOT NULL DEFAULT 0,
             `item_label` VARCHAR(255) NOT NULL DEFAULT '',
@@ -295,8 +294,8 @@ function plugin_inappnotification_install(): bool
             `entities_id` INT UNSIGNED NOT NULL DEFAULT 0,
             `entity_label` VARCHAR(255) NOT NULL DEFAULT '',
             `fingerprint` VARCHAR(190) NOT NULL DEFAULT '',
-            `date_creation` DATETIME DEFAULT NULL,
-            `date_mod` DATETIME DEFAULT NULL,
+            `date_creation` TIMESTAMP NULL DEFAULT NULL,
+            `date_mod` TIMESTAMP NULL DEFAULT NULL,
             PRIMARY KEY (`id`),
             UNIQUE KEY `uniq_recipient_fingerprint` (`recipient_users_id`, `fingerprint`),
             KEY `idx_scheduled` (`scheduled_at`),
@@ -331,7 +330,7 @@ function plugin_inappnotification_install(): bool
             'value' => 0,
             'after' => 'is_read',
         ]);
-        $migration->addField('glpi_plugin_inappnotification_alerts', 'snoozed_until', 'datetime', [
+        $migration->addField('glpi_plugin_inappnotification_alerts', 'snoozed_until', 'timestamp', [
             'after' => 'is_suppressed',
         ]);
 
@@ -399,6 +398,8 @@ function plugin_inappnotification_install(): bool
         ]);
     }
 
+    plugin_inappnotification_convert_datetime_columns($migration);
+
     $migration->executeMigration();
     Settings::ensureDefaults();
     if (!class_exists(Access::class)) {
@@ -411,6 +412,61 @@ function plugin_inappnotification_install(): bool
     plugin_inappnotification_register_cron();
 
     return true;
+}
+
+/**
+ * Upgrade from 1.2.x: DATETIME columns become TIMESTAMP, as GLPI requires for time-zone support
+ * (same conversion as the core "migration:timestamps" command). Idempotent: only columns that
+ * are still DATETIME are changed; a fresh install creates TIMESTAMP columns directly.
+ */
+function plugin_inappnotification_convert_datetime_columns(Migration $migration): void
+{
+    global $DB;
+
+    // Plugin-owned tables only — never a GLPI core table.
+    $columns = $DB->request([
+        'SELECT' => ['table_name AS TABLE_NAME', 'column_name AS COLUMN_NAME'],
+        'FROM'   => 'information_schema.columns',
+        'WHERE'  => [
+            'table_schema' => $DB->dbdefault,
+            'table_name'   => [
+                'glpi_plugin_inappnotification_alerts',
+                'glpi_plugin_inappnotification_scheduled',
+                'glpi_plugin_inappnotification_scheduled_global',
+            ],
+            'data_type'    => 'datetime',
+        ],
+    ]);
+
+    foreach ($columns as $column) {
+        $table = (string) $column['TABLE_NAME'];
+        $field = (string) $column['COLUMN_NAME'];
+
+        // TIMESTAMP cannot hold dates before 1970; such values can only be invalid
+        // zero dates here, as every column is nullable.
+        $DB->update(
+            $table,
+            [$field => null],
+            [
+                ['NOT' => [$field => null]],
+                [$field => ['<', '1970-01-01 00:00:01']],
+            ]
+        );
+
+        $migration->changeField($table, $field, $field, 'timestamp');
+    }
+}
+
+// Activation resets compiled templates but not the Symfony route cache (production mode); without
+// this the controller routes answer 404 until `bin/console cache:clear`.
+function plugin_inappnotification_activate(): void
+{
+    (new CacheManager())->resetAllCaches();
+}
+
+function plugin_inappnotification_deactivate(): void
+{
+    (new CacheManager())->resetAllCaches();
 }
 
 function plugin_inappnotification_uninstall(): bool
@@ -439,14 +495,4 @@ function plugin_inappnotification_dashboard_cards(?array $cards = null): array
     }
 
     return array_merge($cards, CardRegistry::getCards());
-}
-
-function plugin_inappnotification_ensure_core_mode_config(): void
-{
-    $config = Config::getConfigurationValues('core', ['notifications_inapp']);
-    if (!array_key_exists('notifications_inapp', $config)) {
-        Config::setConfigurationValues('core', [
-            'notifications_inapp' => 1,
-        ]);
-    }
 }

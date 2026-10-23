@@ -524,7 +524,6 @@ class AlertStore
         }
 
         if (class_exists($itemtype) && method_exists($itemtype, 'getTypeName')) {
-            /** @phpstan-ignore-next-line */
             return (string) $itemtype::getTypeName(1);
         }
 
@@ -693,7 +692,6 @@ class AlertStore
             return '';
         }
 
-        /** @phpstan-ignore-next-line */
         return (string) $itemtype::getFormURLWithID($items_id);
     }
 
@@ -870,15 +868,31 @@ class AlertStore
             return $where;
         }
 
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
-        $where[] = [
-            'OR' => [
-                ['is_suppressed' => 1],
-                ['snoozed_until' => ['>', $now]],
-            ],
-        ];
+        $where[] = self::getMutedCriteria();
 
         return $where;
+    }
+
+    /**
+     * WHERE criteria for a muted entry: suppressed, or snoozed until a future time. Shared with the
+     * muted search list (plugin_inappnotification_restriction_where()), so the list and the bell's
+     * muted count agree.
+     *
+     * @param string $table Table name to qualify the columns with ('' = unqualified).
+     *
+     * @return array{OR: array<int, array<string, mixed>>}
+     */
+    public static function getMutedCriteria(string $table = ''): array
+    {
+        $prefix = $table !== '' ? $table . '.' : '';
+        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+
+        return [
+            'OR' => [
+                [$prefix . 'is_suppressed' => 1],
+                [$prefix . 'snoozed_until' => ['>', $now]],
+            ],
+        ];
     }
 
     private static function muteFieldsReady(): bool

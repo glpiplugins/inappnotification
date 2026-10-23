@@ -109,6 +109,11 @@ msgstr "Gérer reportées/supprimées"
 msgid "Muted in-app notifications"
 msgstr "Notifications in-app masquées"
 
+msgid "Muted notification"
+msgid_plural "Muted notifications"
+msgstr[0] "Notification masquée"
+msgstr[1] "Notifications masquées"
+
 msgid "Muted notifications are not available yet. Please run the plugin update from GLPI plugins page."
 msgstr "Les notifications masquées ne sont pas encore disponibles. Veuillez lancer la mise à jour du plugin depuis la page des plugins GLPI."
 
@@ -312,6 +317,15 @@ msgstr "notifications supplémentaires"
 
 msgid "Open notification list"
 msgstr "Ouvrir la liste des notifications"
+
+msgid "Notifications"
+msgstr "Notifications"
+
+msgid "Test sound"
+msgstr "Tester le son"
+
+msgid "Sound blocked by the browser: click anywhere on the page, or allow autoplay for this site."
+msgstr "Son bloqué par le navigateur : cliquez sur la page ou autorisez la lecture automatique pour ce site."
 
 msgid "Mark as read"
 msgstr "Marquer comme lu"

@@ -1,9 +1,8 @@
 <?php
 
+use Glpi\Exception\Http\AccessDeniedHttpException;
 use GlpiPlugin\Inappnotification\ScheduledEntry;
 use GlpiPlugin\Inappnotification\Service\ScheduledNotificationStore;
-
-include_once __DIR__ . '/../../../inc/includes.php';
 
 if (!class_exists(ScheduledEntry::class)) {
     require_once __DIR__ . '/../src/ScheduledEntry.php';
@@ -16,7 +15,7 @@ if (!class_exists(ScheduledNotificationStore::class)) {
 Session::checkLoginUser();
 
 if (!ScheduledEntry::canView()) {
-    Html::displayRightError();
+    throw new AccessDeniedHttpException();
 }
 
 $users_id = (int) Session::getLoginUserID();
@@ -45,15 +44,7 @@ if (!$table_ready) {
     echo htmlescape(__('Upcoming notifications storage is not available yet. Please run the plugin update from GLPI plugins page.', 'inappnotification'));
     echo "</div>";
 } else {
-    Search::show(
-        ScheduledEntry::class,
-        [
-            'reset' => 'reset',
-            'sort'  => 1,
-            'order' => 'ASC',
-        ],
-        [1, 2, 7, 3, 4, 5, 6]
-    );
+    Search::show(ScheduledEntry::class);
 }
 
 Html::footer();

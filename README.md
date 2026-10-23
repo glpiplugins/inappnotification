@@ -36,7 +36,7 @@ GLPI notification event ──(mode 'inapp')──▶ PluginInappnotificationNot
                                     glpi_plugin_inappnotification_alerts
                                                       ▲  reads / mutates (AJAX, JSON)
                                                       │
-    Top-bar bell (Vue) ──▶ front/notifications.php ───┘
+    Top-bar bell (Vue) ──▶ NotificationController ────┘
 ```
 
 - **Mode classes** (global, GLPI naming convention) resolved by
@@ -45,8 +45,9 @@ GLPI notification event ──(mode 'inapp')──▶ PluginInappnotificationNot
   - `PluginInappnotificationNotificationEventInapp` — the event class,
   - `PluginInappnotificationNotificationInappSetting` — the mode settings page.
 - **Tables**: `glpi_plugin_inappnotification_alerts`, `…_scheduled`, `…_scheduled_global`.
-- The **bell** is a Vue component mounted onto GLPI's shared Vue runtime (see *Frontend*); it polls
-  `front/notifications.php` for the list/counts and posts actions back to it.
+- The **bell** is a Vue component mounted onto GLPI's shared Vue runtime (see *Frontend*). It talks
+  to `NotificationController`: `GET /plugins/inappnotification/Notifications` for the list/counts,
+  `POST …/Notifications/<action>` for actions. See *Several open tabs* for polling and the chime.
 
 ## Notification sources
 
@@ -71,8 +72,15 @@ Wired in `plugin_init_inappnotification()` (`setup.php`):
     current user in GLPI search;
   - `add_css` / `javascript_module` → the built bell assets in `public/js/dist/`;
   - `add_header_tag` → the `inappnotification:boot` meta tag (config + server-translated labels).
-- Native GLPI `Search` for the `AlertEntry` itemtype; native session/CSRF handling in `front/*.php`.
-- On install/init, the core switch `notifications_inapp` is ensured.
+- Native GLPI `Search` for the plugin itemtypes (their `getSearchURL()` points at the plugin's own
+  list pages); native session/CSRF handling in `front/*.php`.
+- `src/Controller/NotificationController.php`: JSON endpoint of the bell, with the firewall strategy
+  "authenticated" so it also works in the simplified interface (controllers default to "central
+  access"). GLPI's CSRF listener checks the `X-Glpi-Csrf-Token` header the bell sends; actions are
+  POST-only (a GET gets 405).
+- Activation and deactivation reset GLPI's caches, so the controller routes are found right away.
+- Install/update enables the core switch `notifications_inapp` and creates the settings defaults, the
+  profile right and the cron task. `plugin_init` does no DB work, as it runs on every request.
 
 Access: the "all users upcoming" list requires the `plugin_inappnotification_upcoming_all` right
 (managed on the profile's *InAppNotification* tab). All other views are scoped to the logged-in user.
@@ -80,7 +88,7 @@ Access: the "all users upcoming" list requires the `plugin_inappnotification_upc
 ## Configuration
 
 `Setup > Plugins > InAppNotification > Configuration` (stored under the `plugin:inappnotification`
-config context; defaults seeded on install/init):
+config context; defaults seeded on install and on first read):
 
 - Enable/disable source families: saved searches, tickets, projects, reminders, SLA/SLM, scheduled
   tasks, other.
@@ -121,14 +129,27 @@ npm run lint       # eslint over src/vue
 
 ## Tests
 
-PHPUnit unit tests cover pure, DB-free logic (`Settings`, `AlertStore` helpers) and run on the host
-against glpi-core's vendor:
+`tools/check.sh` runs everything that needs no running GLPI, inside the official GLPI image of the
+supported version (`glpi/glpi:11.0.8`): PHPUnit, PHPStan, ESLint and a check that the committed bundle matches
+`src/vue`. `tools/check.sh --e2e` adds the end-to-end tests.
+
+- **Unit tests** (`tests/Unit`, no database): settings, `AlertStore` helpers and the per-user search
+  restriction of `hook.php`, including a guard that fails when a plugin itemtype is missing from it.
+- **End-to-end tests** (`tests/e2e/run.sh`): start their own GLPI and MariaDB containers, upgrade from
+  the 1.2.3 schema, uninstall, install, check the bell endpoint (per-user isolation, CSRF, rights,
+  simplified interface) and the pages, then drive the bell in Chromium (`tests/e2e/bell.cjs`):
+  several tabs with Web Locks and with the `localStorage` fallback, the chime, a navigated tab, user
+  actions and the muted list. Needs docker, curl, python3 and `npm ci` (Playwright). `E2E_KEEP=1`
+  keeps the containers, `E2E_BROWSER=0` skips the browser part.
+
+Static analysis against the GLPI 11 sources of the official image (deprecated core APIs included):
 
 ```bash
-../glpi-core/vendor/bin/phpunit -c phpunit.xml.dist
+docker run --rm --entrypoint php -u "$(id -u):$(id -g)" \
+  -v <glpi-core>:/plugins/glpi-core:ro -v "$PWD:/var/www/glpi/plugins/inappnotification" \
+  -w /var/www/glpi/plugins/inappnotification glpi/glpi:11.0.8 \
+  /plugins/glpi-core/vendor/bin/phpstan analyse --memory-limit=1G
 ```
-
-If the host PHP CLI lacks the `dom`/`xml` extensions, run the same command inside the GLPI container.
 
 ## Developer test panel
 
@@ -148,12 +169,41 @@ notifications are tagged `[TEST]`, seeded upcoming rows use a `devtest:` fingerp
 2. `Setup > Plugins` → install and enable (creates tables, seeds config, registers the right).
 3. Configure GLPI notifications to use the `inapp` mode, and/or adjust the plugin settings.
 
+Upgrading from 1.2.x: run the plugin update (`Setup > Plugins` or `bin/console plugin:install
+inappnotification` + `plugin:activate`). Since 1.3.0 it converts the plugin's `DATETIME` columns to
+`TIMESTAMP` (GLPI discourages `DATETIME`) and keeps all data.
+
 ## Runtime behavior
 
 - The unread badge uses the aggregated `unread_count`.
 - Re-triggering the same fingerprint increments counters and flips the entry back to unread.
 - Visibility is user-specific (enforced in search via the default-where hooks).
 - Snoozed/suppressed entries are excluded from active unread lists until they expire or are reactivated.
+  The muted page lists them as its own itemtype (`MutedAlertEntry`, same table, fixed muted filter).
+
+### Several open tabs
+
+- One tab per browser polls the server (every 10 s) and shares each result with the other tabs over a
+  `BroadcastChannel`; the other tabs do not poll. When that tab closes, another one takes over. A
+  visible tab fetches itself when the shared data is older than 15 s, because the browser may throttle
+  or suspend a poller in a background tab.
+- Responses are ordered by the time their request started: a response overtaken by newer data (e.g. a
+  poll that was in flight while another tab marked everything as read) is dropped.
+- New notifications are detected once: the tab that receives data from the server compares it with a
+  baseline shared via `localStorage` (per user) and updates it. Changes a tab made itself (e.g. "mark
+  as unread") are not announced. A page load right after a new notification still announces it.
+- Exactly one tab chimes: the first tab whose audio is unlocked. Browsers allow audio only after a user
+  gesture, which usually carries over same-site navigations. If no tab has unlocked audio, the
+  detecting tab tries itself. The mute toggle applies to all tabs.
+- The roles are held with the Web Locks API. Over plain HTTP (no secure context) a `localStorage`
+  lease is used instead; a role then moves on within a few seconds after its tab is gone.
+- Browsers throttle timers in tabs that stay in the background for a while, so a chime can come later
+  while every GLPI tab is hidden.
+- Without `BroadcastChannel` every tab polls on its own; a short-lived `localStorage` mark keeps it to
+  one chime per change, from a tab that can play audio.
+- Implementation: `src/vue/composables/useTabCoordinator.js`. The bell root exposes the roles as
+  `data-coordination`, `data-poller` and `data-sound`; a played chime fires `inappnotification:chime`
+  on `window`.
 
 ## Project layout
 
@@ -161,15 +211,19 @@ notifications are tagged `[TEST]`, seeded upcoming rows use a `devtest:` fingerp
 setup.php            lifecycle: hooks, mode registration, boot meta tag, install/uninstall
 hook.php             search restriction hooks (per-user visibility)
 src/Mode/            global mode classes (Inapp / EventInapp / InappSetting)
-src/AlertEntry.php, src/ScheduledEntry.php, src/ScheduledGlobalEntry.php   CommonDBTM models
+src/AlertEntry.php, src/MutedAlertEntry.php, src/ScheduledEntry.php, src/ScheduledGlobalEntry.php
+                     CommonDBTM models (search itemtypes)
+src/Controller/      NotificationController (JSON endpoint of the bell)
 src/Service/         AlertStore (capture/read/mutate), ScheduledNotificationStore
 src/Config/Settings.php          plugin settings
 src/Dashboard/       dashboard card provider / registry
 src/Access.php, src/ProfileTab.php   rights
-front/               notifications.php (AJAX JSON), center/muted/scheduled pages, item forms, config
-src/vue/             Vue bell sources (built to public/js/dist/)
+front/               center/muted/scheduled pages, item forms, config, dev panel
+src/vue/             Vue bell sources (built to public/js/dist/); composables/useTabCoordinator.js
+                     coordinates polling and the chime across tabs
 locales/             .po sources + compiled .mo
-tests/               PHPUnit unit tests
+tests/               PHPUnit unit tests (tests/Unit), end-to-end tests (tests/e2e)
+tools/               check.sh (all checks), po2mo.php
 ```
 
 ## Design principles

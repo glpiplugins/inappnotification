@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 
-// Data layer for the bell: talks to front/notifications.php.
+// Data layer for the bell: talks to NotificationController (GET <apiUrl>, POST <apiUrl>/<action>).
 // CSRF handling + single retry on session/CSRF expiry, ported from the legacy code.
 // Responses are data-only now (the i18n payload has been removed server-side).
 export function useNotifications(config) {
@@ -50,7 +50,7 @@ export function useNotifications(config) {
     };
 
     const buildListUrl = function (limit = 15) {
-        return `${apiUrl}?action=list&limit=${Number(limit)}&_=${Date.now()}`;
+        return `${apiUrl}?limit=${Number(limit)}&_=${Date.now()}`;
     };
 
     const ensureCsrfToken = async function () {
@@ -103,7 +103,6 @@ export function useNotifications(config) {
     const action = async function (name, body = {}) {
         const sendAction = async function (token) {
             const form = new URLSearchParams();
-            form.set('action', name);
             if (token) {
                 form.set('_glpi_csrf_token', token);
             }
@@ -116,7 +115,7 @@ export function useNotifications(config) {
                 form.set(key, String(value));
             });
 
-            const response = await fetch(apiUrl, {
+            const response = await fetch(`${apiUrl}/${encodeURIComponent(name)}`, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
