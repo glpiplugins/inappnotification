@@ -10,7 +10,7 @@ use User;
 
 class ScheduledEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultSearchRequestInterface
 {
-    public static $rightname = 'bookmark_public';
+    public static string $rightname = 'bookmark_public';
 
     public static function getTypeName($nb = 0): string
     {

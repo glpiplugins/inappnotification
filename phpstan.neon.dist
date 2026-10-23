@@ -1,7 +1,7 @@
-# Static analysis against the GLPI 11 sources of the official image, e.g.:
+# Static analysis against the GLPI 12 sources of the official image, e.g.:
 #   docker run --rm --entrypoint php -v <glpi-core>:/plugins/glpi-core:ro \
 #     -v $PWD:/var/www/glpi/plugins/inappnotification -w /var/www/glpi/plugins/inappnotification \
-#     glpi/glpi:11.0.8 /plugins/glpi-core/vendor/bin/phpstan analyse --memory-limit=1G
+#     glpi/glpi:12.0.0 /plugins/glpi-core/vendor/bin/phpstan analyse --memory-limit=1G
 # glpi-core only provides the phpstan binary.
 includes:
     # Reports calls to APIs GLPI marks as @deprecated.

@@ -31,7 +31,6 @@ echo "<div class='card'>";
 echo "<div class='card-header'><h3 class='card-title mb-0'>" . htmlescape(__('InAppNotification settings', 'inappnotification')) . "</h3></div>";
 echo "<div class='card-body'>";
 echo "<form method='post' class='d-grid gap-3'>";
-echo Html::hidden('_glpi_csrf_token', ['value' => Session::getNewCSRFToken()]);
 
 echo "<div class='row g-3'>";
 

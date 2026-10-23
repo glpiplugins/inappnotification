@@ -9,7 +9,7 @@ use User;
 
 class ScheduledGlobalEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultSearchRequestInterface
 {
-    public static $rightname = Access::RIGHT_UPCOMING_ALL;
+    public static string $rightname = Access::RIGHT_UPCOMING_ALL;
 
     public static function getTypeName($nb = 0): string
     {
