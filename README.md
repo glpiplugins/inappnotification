@@ -4,7 +4,8 @@
 (`inapp`) that captures events from GLPI's native notification pipeline, a reactive **bell** in the
 top bar, and server-rendered pages for searchable history, upcoming and muted items.
 
-- Requires GLPI `>= 11.0.0` and `< 12.0.0`.
+- Requires GLPI `12.0.x` (`>= 12.0.0`, `<= 12.0.99`) and PHP 8.5 (official `glpi/glpi:12.0.0` image).
+  This is the `glpi12` branch; GLPI 11 is maintained on `main` (1.x).
 - PHP namespace: `GlpiPlugin\Inappnotification\`.
 - Runs against an **unmodified** `glpi-core` (no core patches required).
 
@@ -73,11 +74,11 @@ Wired in `plugin_init_inappnotification()` (`setup.php`):
   - `add_css` / `javascript_module` → the built bell assets in `public/js/dist/`;
   - `add_header_tag` → the `inappnotification:boot` meta tag (config + server-translated labels).
 - Native GLPI `Search` for the plugin itemtypes (their `getSearchURL()` points at the plugin's own
-  list pages); native session/CSRF handling in `front/*.php`.
+  list pages); native session handling in `front/*.php`.
 - `src/Controller/NotificationController.php`: JSON endpoint of the bell, with the firewall strategy
   "authenticated" so it also works in the simplified interface (controllers default to "central
-  access"). GLPI's CSRF listener checks the `X-Glpi-Csrf-Token` header the bell sends; actions are
-  POST-only (a GET gets 405).
+  access"). No CSRF tokens: GLPI 12 checks `Sec-Fetch-Site`/`Origin` on every request with a body;
+  actions are POST-only (a GET gets 405).
 - Activation and deactivation reset GLPI's caches, so the controller routes are found right away.
 - Install/update enables the core switch `notifications_inapp` and creates the settings defaults, the
   profile right and the cron task. `plugin_init` does no DB work, as it runs on every request.
@@ -130,7 +131,7 @@ npm run lint       # eslint over src/vue
 ## Tests
 
 `tools/check.sh` runs everything that needs no running GLPI, inside the official GLPI image of the
-supported version (`glpi/glpi:11.0.8`): PHPUnit, PHPStan, ESLint and a check that the committed bundle matches
+supported version (`glpi/glpi:12.0.0`): PHPUnit, PHPStan, ESLint and a check that the committed bundle matches
 `src/vue`. `tools/check.sh --e2e` adds the end-to-end tests.
 
 - **Unit tests** (`tests/Unit`, no database): settings, `AlertStore` helpers and the per-user search
@@ -142,12 +143,12 @@ supported version (`glpi/glpi:11.0.8`): PHPUnit, PHPStan, ESLint and a check tha
   actions and the muted list. Needs docker, curl, python3 and `npm ci` (Playwright). `E2E_KEEP=1`
   keeps the containers, `E2E_BROWSER=0` skips the browser part.
 
-Static analysis against the GLPI 11 sources of the official image (deprecated core APIs included):
+Static analysis against the GLPI 12 sources of the official image (deprecated core APIs included):
 
 ```bash
 docker run --rm --entrypoint php -u "$(id -u):$(id -g)" \
   -v <glpi-core>:/plugins/glpi-core:ro -v "$PWD:/var/www/glpi/plugins/inappnotification" \
-  -w /var/www/glpi/plugins/inappnotification glpi/glpi:11.0.8 \
+  -w /var/www/glpi/plugins/inappnotification glpi/glpi:12.0.0 \
   /plugins/glpi-core/vendor/bin/phpstan analyse --memory-limit=1G
 ```
 
@@ -169,9 +170,9 @@ notifications are tagged `[TEST]`, seeded upcoming rows use a `devtest:` fingerp
 2. `Setup > Plugins` → install and enable (creates tables, seeds config, registers the right).
 3. Configure GLPI notifications to use the `inapp` mode, and/or adjust the plugin settings.
 
-Upgrading from 1.2.x: run the plugin update (`Setup > Plugins` or `bin/console plugin:install
-inappnotification` + `plugin:activate`). Since 1.3.0 it converts the plugin's `DATETIME` columns to
-`TIMESTAMP` (GLPI discourages `DATETIME`) and keeps all data.
+Upgrading from 1.x (GLPI 11): after `db:update` to GLPI 12, deploy 2.x and run the plugin update
+(`Setup > Plugins` or `bin/console plugin:install inappnotification` + `plugin:activate`). It converts
+the plugin's `DATETIME` columns to `TIMESTAMP` and keeps all data.
 
 ## Runtime behavior
 

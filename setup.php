@@ -12,7 +12,7 @@ if (!defined('GLPI_ROOT')) {
     die("Sorry. You can't access this file directly");
 }
 
-define('PLUGIN_INAPPNOTIFICATION_VERSION', '1.3.3');
+define('PLUGIN_INAPPNOTIFICATION_VERSION', '2.1.3');
 
 function plugin_version_inappnotification(): array
 {
@@ -24,8 +24,8 @@ function plugin_version_inappnotification(): array
         'homepage'     => 'https://glpi-project.org',
         'requirements' => [
             'glpi' => [
-                'min' => '11.0.0',
-                'max' => '11.99.99',
+                'min' => '12.0.0',
+                'max' => '12.0.99',
             ],
         ],
     ];
@@ -45,7 +45,7 @@ function plugin_init_inappnotification(): void
     // defaults, the profile right, the core "notifications_inapp" switch and the cron task are set up
     // by the install/update (Settings::get() also fills in missing defaults on first use).
 
-    $PLUGIN_HOOKS['csrf_compliant']['inappnotification'] = true;
+    // No csrf_compliant hook: GLPI 12 validates CSRF via the Sec-Fetch-Site/Origin headers.
 
     $PLUGIN_HOOKS['menu_toadd']['inappnotification'] = [
         'tools' => AlertEntry::class,
@@ -57,11 +57,11 @@ function plugin_init_inappnotification(): void
         'addtabon' => [Profile::class],
     ]);
 
-    $PLUGIN_HOOKS['add_css']['inappnotification'][] = 'public/js/dist/inappnotification-vue.css';
+    $PLUGIN_HOOKS['add_css']['inappnotification'][] = 'js/dist/inappnotification-vue.css';
     // The notification bell is a Vue component built into an IIFE bundle. It is loaded as a
     // deferred JS module (footer) so it runs after GLPI's build/vue/app.js, i.e. once
     // window._vue / window.Vue are available.
-    $PLUGIN_HOOKS[Hooks::ADD_JAVASCRIPT_MODULE]['inappnotification'][] = 'public/js/dist/inappnotification-vue.js';
+    $PLUGIN_HOOKS[Hooks::ADD_JAVASCRIPT_MODULE]['inappnotification'][] = 'js/dist/inappnotification-vue.js';
 
     // Deliver translated UI labels + config to the bell via a <meta> boot tag (server-side
     // gettext, plugin domain). Replaces the former JS dictionary and per-AJAX i18n payload.
@@ -415,7 +415,7 @@ function plugin_inappnotification_install(): bool
 }
 
 /**
- * Upgrade from 1.2.x: DATETIME columns become TIMESTAMP, as GLPI requires for time-zone support
+ * Upgrade from 1.x: DATETIME columns become TIMESTAMP, as GLPI requires for time-zone support
  * (same conversion as the core "migration:timestamps" command). Idempotent: only columns that
  * are still DATETIME are changed; a fresh install creates TIMESTAMP columns directly.
  */

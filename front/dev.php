@@ -59,11 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $root = (string) ($GLOBALS['CFG_GLPI']['root_doc'] ?? '');
 $base = $root . '/plugins/inappnotification/front';
-$token = Session::getNewCSRFToken();
 
-$button = static function (string $action, string $label, string $help, string $btn_class) use ($token): string {
+$button = static function (string $action, string $label, string $help, string $btn_class): string {
     return "<form method='post' class='inappnotification-dev-action'>"
-        . Html::hidden('_glpi_csrf_token', ['value' => $token])
         . Html::hidden('action', ['value' => $action])
         . "<button type='submit' class='btn $btn_class'>" . htmlescape($label) . "</button>"
         . "<div class='text-muted small mt-1'>" . htmlescape($help) . "</div>"
