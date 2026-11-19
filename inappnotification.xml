@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<root>
+   <name>InAppNotification</name>
+   <key>inappnotification</key>
+   <state>stable</state>
+   <description>
+      <short>
+         <en><![CDATA[In-app notification center: a notification mode for GLPI's notifications, a bell in the top bar and searchable notification lists.]]></en>
+         <fr><![CDATA[Centre de notifications in-app : un mode de notification pour les notifications de GLPI, une cloche dans la barre supérieure et des listes de notifications consultables.]]></fr>
+         <de><![CDATA[In-App-Benachrichtigungszentrale: ein Benachrichtigungsmodus für die GLPI-Benachrichtigungen, eine Glocke in der oberen Leiste und durchsuchbare Benachrichtigungslisten.]]></de>
+         <es><![CDATA[Centro de notificaciones en la aplicación: un modo de notificación para las notificaciones de GLPI, una campana en la barra superior y listas de notificaciones con búsqueda.]]></es>
+         <pt><![CDATA[Centro de notificações na aplicação: um modo de notificação para as notificações do GLPI, um sino na barra superior e listas de notificações pesquisáveis.]]></pt>
+      </short>
+      <long>
+         <en><![CDATA[InAppNotification adds the "In-app" mode to GLPI's notifications. Every notification configured for this mode is stored for its recipients and shown in a bell in the top bar, with an unread counter, tabs per source (tickets, saved searches, projects, reminders, SLA, automatic actions), and actions to mark as read, snooze or suppress. Searchable lists show all notifications, the muted ones and the upcoming ones (planning reminders, pending-reason follow-ups and resolutions, alerts). Dashboard cards count the unread notifications.]]></en>
+         <fr><![CDATA[InAppNotification ajoute le mode « in-app » aux notifications de GLPI. Chaque notification configurée pour ce mode est conservée pour ses destinataires et affichée dans une cloche de la barre supérieure, avec un compteur de non lues, des onglets par source (tickets, recherches sauvegardées, projets, notes, SLA, actions automatiques) et des actions pour marquer comme lue, reporter ou masquer. Des listes consultables présentent toutes les notifications, celles en sourdine et celles à venir (rappels du planning, relances et résolutions des raisons d'attente, alertes). Des cartes de tableau de bord comptent les notifications non lues.]]></fr>
+         <de><![CDATA[InAppNotification ergänzt die GLPI-Benachrichtigungen um den Modus „In-App“. Jede für diesen Modus konfigurierte Benachrichtigung wird für ihre Empfänger gespeichert und in einer Glocke in der oberen Leiste angezeigt, mit Zähler für Ungelesenes, Reitern je Quelle (Tickets, gespeicherte Suchen, Projekte, Erinnerungen, SLA, automatische Jobs) und Aktionen zum Als-gelesen-Markieren, Zurückstellen und Unterdrücken. Durchsuchbare Listen zeigen alle, die stummgeschalteten und die anstehenden Benachrichtigungen (geplante Erinnerungen, Erinnerungen und Lösungen zu Wartegründen, Alarme). Dashboard-Karten zählen die ungelesenen Benachrichtigungen.]]></de>
+         <es><![CDATA[InAppNotification añade el modo «en la aplicación» a las notificaciones de GLPI. Cada notificación configurada para este modo se guarda para sus destinatarios y se muestra en una campana de la barra superior, con un contador de no leídas, pestañas por fuente (solicitudes, búsquedas guardadas, proyectos, recordatorios, ANS, acciones automáticas) y acciones para marcar como leída, posponer u ocultar. Listas con búsqueda muestran todas las notificaciones, las silenciadas y las próximas (recordatorios de planificación, recordatorios y resoluciones por motivo de espera, alertas). Las tarjetas del panel cuentan las notificaciones sin leer.]]></es>
+         <pt><![CDATA[O InAppNotification acrescenta o modo «na aplicação» às notificações do GLPI. Cada notificação configurada para este modo é guardada para os seus destinatários e apresentada num sino na barra superior, com um contador de não lidas, separadores por origem (tickets, pesquisas guardadas, projetos, notas, SLA, ações automáticas) e ações para marcar como lida, adiar ou ocultar. Listas pesquisáveis mostram todas as notificações, as silenciadas e as próximas (lembretes de planeamento, lembretes e soluções por motivo de pendente, alertas). Cartões do painel contam as notificações não lidas.]]></pt>
+      </long>
+   </description>
+   <homepage>https://github.com/glpiplugins/inappnotification</homepage>
+   <download>https://github.com/glpiplugins/inappnotification/releases</download>
+   <issues>https://github.com/glpiplugins/inappnotification/issues</issues>
+   <readme>https://raw.githubusercontent.com/glpiplugins/inappnotification/main/README.md</readme>
+   <authors>
+      <author>Roy Brannath</author>
+   </authors>
+   <versions>
+      <version>
+         <num>2.2.0</num>
+         <compatibility>~12.0.0</compatibility>
+         <download_url>https://github.com/glpiplugins/inappnotification/releases/download/2.2.0/glpi-inappnotification-2.2.0.tar.bz2</download_url>
+      </version>
+   </versions>
+   <langs>
+      <lang>de_DE</lang>
+      <lang>en_GB</lang>
+      <lang>es_ES</lang>
+      <lang>fr_FR</lang>
+      <lang>pt_BR</lang>
+      <lang>pt_PT</lang>
+   </langs>
+   <license>GPLv3+</license>
+   <tags>
+      <en>
+         <tag>notification</tag>
+         <tag>bell</tag>
+         <tag>in-app</tag>
+         <tag>dashboard</tag>
+      </en>
+      <fr>
+         <tag>notification</tag>
+         <tag>cloche</tag>
+         <tag>in-app</tag>
+         <tag>tableau de bord</tag>
+      </fr>
+      <de>
+         <tag>Benachrichtigung</tag>
+         <tag>Glocke</tag>
+         <tag>In-App</tag>
+         <tag>Dashboard</tag>
+      </de>
+      <es>
+         <tag>notificación</tag>
+         <tag>campana</tag>
+         <tag>en la aplicación</tag>
+         <tag>panel</tag>
+      </es>
+      <pt>
+         <tag>notificação</tag>
+         <tag>sino</tag>
+         <tag>na aplicação</tag>
+         <tag>painel</tag>
+      </pt>
+   </tags>
+</root>

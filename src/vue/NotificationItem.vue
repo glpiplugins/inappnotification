@@ -76,8 +76,13 @@
 </template>
 
 <script setup>
+/*!
+ * InAppNotification plugin for GLPI
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-FileCopyrightText: 2026 Roy Brannath
+ */
 import { computed, ref, watch } from 'vue';
-import { normalizeGroup, getGroupLabel, getDisplayTitle } from './helpers.js';
+import { getItemSourceLabel } from './helpers.js';
 import { useMenuPosition } from './composables/useMenuPosition.js';
 
 const props = defineProps({
@@ -101,13 +106,8 @@ const occurrenceLabel = computed(() => {
     const occurrences = Math.max(1, Number(props.item.occurrence_count || 0));
     return occurrences > 99 ? '99+' : String(occurrences);
 });
-const sourceGroup = computed(() => normalizeGroup(props.item.source_group));
-const sourceLabel = computed(() => (
-    sourceGroup.value === 'savedsearch'
-        ? props.t('Search')
-        : String(props.item.source_label || getGroupLabel(props.t, sourceGroup.value) || props.t('Other'))
-));
-const displayTitle = computed(() => getDisplayTitle(props.t, props.item));
+const sourceLabel = computed(() => getItemSourceLabel(props.t, props.item));
+const displayTitle = computed(() => props.item.display_title);
 const titleTooltip = computed(() => (displayTitle.value !== '' ? displayTitle.value : sourceLabel.value));
 
 watch(() => props.menuOpen, (open) => {

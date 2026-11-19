@@ -1,68 +1,63 @@
-// Pure, framework-agnostic helpers ported from the legacy bell implementation.
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
+// Pure, framework-agnostic helpers of the bell.
 // `t` is the i18n lookup (key -> translated label), injected by the caller.
 
+// Source families, as sent by the server (`source_group`), in tab order.
 export const SOURCE_GROUP_ORDER = ['ticket', 'savedsearch', 'project', 'reminder', 'sla', 'crontask', 'other'];
 
-export function normalizeGroup(value) {
-    const normalized = String(value || '').trim().toLowerCase();
-    return normalized !== '' ? normalized : 'other';
-}
-
-export function humanizeGroup(value) {
-    return String(value || '')
-        .replaceAll('_', ' ')
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-}
+const GROUP_LABEL_KEYS = {
+    ticket: 'Ticket',
+    savedsearch: 'Search',
+    project: 'Project',
+    reminder: 'Reminder',
+    sla: 'SLA',
+    crontask: 'Automatic action',
+    other: 'Other',
+};
 
 export function getGroupLabel(t, group) {
-    const key = normalizeGroup(group);
-    const map = {
-        ticket: 'Ticket',
-        savedsearch: 'Search',
-        project: 'Project',
-        reminder: 'Reminder',
-        sla: 'SLA',
-        crontask: 'Scheduled task',
-        other: 'Other',
-    };
-    if (map[key]) {
-        return t(map[key]);
-    }
-    return humanizeGroup(key);
+    return t(GROUP_LABEL_KEYS[group] || GROUP_LABEL_KEYS.other);
+}
+
+// Fills the `%d` placeholder of a translated label.
+export function formatCount(label, count) {
+    return label.replace('%d', String(count));
 }
 
 export function badgeLabel(value) {
     return Number(value) > 99 ? '99+' : String(value);
 }
 
-export function getDisplayTitle(t, item) {
-    const explicitTitle = String(item.display_title || '').trim();
-    if (explicitTitle !== '') {
-        return explicitTitle;
-    }
-
-    const rawTitle = String(item.alert_name || '').trim();
-    const group = normalizeGroup(item.source_group);
-    const ticketId = Number(item.source_items_id || 0);
-
-    if (group !== 'ticket' || ticketId <= 0) {
-        return rawTitle;
-    }
-
-    const cleaned = rawTitle
-        .replace(/^\[[^\]]*#0*\d+\]\s*/i, '')
-        .replace(/^ticket\s*#\d+\s*[-:]*\s*/i, '')
-        .replace(/\s*\(\d+\)\s*$/, '')
-        .trim();
-    const title = cleaned !== '' ? cleaned : t('Ticket');
-    return `${title} (${ticketId})`;
-}
-
 export function getItemSourceLabel(t, item) {
-    const sourceGroup = normalizeGroup(item && item.source_group);
-    return sourceGroup === 'savedsearch'
-        ? t('Search')
-        : String((item && item.source_label) || getGroupLabel(t, sourceGroup) || t('Other'));
+    return item.source_group === 'savedsearch' ? t('Search') : item.source_label;
 }
 
 export function computeNewUnreadChanges(previousItems, nextItems) {

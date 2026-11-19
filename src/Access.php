@@ -1,14 +1,47 @@
 <?php
 
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 namespace GlpiPlugin\Inappnotification;
 
 use ProfileRight;
 use Session;
 
+/**
+ * The plugin's profile right: viewing the upcoming notifications of all users.
+ */
 class Access
 {
     public const RIGHT_UPCOMING_ALL = 'plugin_inappnotification_upcoming_all';
-    private const RIGHTMASK_READ = 1;
+
+    private const int RIGHTMASK_READ = 1;
 
     public static function canViewAllUpcoming(): bool
     {
@@ -17,29 +50,6 @@ class Access
         }
 
         return Session::haveRight(self::RIGHT_UPCOMING_ALL, self::RIGHTMASK_READ);
-    }
-
-    public static function profileCanViewAllUpcoming(int $profiles_id): bool
-    {
-        if ($profiles_id <= 0) {
-            return false;
-        }
-
-        $rights = ProfileRight::getProfileRights($profiles_id, [self::RIGHT_UPCOMING_ALL]);
-        $mask = (int) ($rights[self::RIGHT_UPCOMING_ALL] ?? 0);
-
-        return ($mask & self::RIGHTMASK_READ) === self::RIGHTMASK_READ;
-    }
-
-    public static function setProfileCanViewAllUpcoming(int $profiles_id, bool $allow): void
-    {
-        if ($profiles_id <= 0) {
-            return;
-        }
-
-        ProfileRight::updateProfileRights($profiles_id, [
-            self::RIGHT_UPCOMING_ALL => $allow ? self::RIGHTMASK_READ : 0,
-        ]);
     }
 
     public static function ensureProfileRightDefinition(): void

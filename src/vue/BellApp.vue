@@ -218,6 +218,11 @@
 </template>
 
 <script setup>
+/*!
+ * InAppNotification plugin for GLPI
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-FileCopyrightText: 2026 Roy Brannath
+ */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import NotificationItem from './NotificationItem.vue';
 import { useNotifications } from './composables/useNotifications.js';
@@ -226,10 +231,9 @@ import { useTabCoordinator } from './composables/useTabCoordinator.js';
 import { useMenuPosition } from './composables/useMenuPosition.js';
 import {
     SOURCE_GROUP_ORDER,
-    normalizeGroup,
     getGroupLabel,
-    getDisplayTitle,
     getItemSourceLabel,
+    formatCount,
     badgeLabel,
     sanitizeToastUrl,
     escapeHtml,
@@ -240,7 +244,7 @@ const props = defineProps({
     labels: { type: Object, required: true },
 });
 
-const t = (key) => (Object.prototype.hasOwnProperty.call(props.labels, key) ? props.labels[key] : key);
+const t = (key) => props.labels[key] ?? key;
 
 const { list, action } = useNotifications(props.config);
 const {
@@ -290,34 +294,25 @@ const { menuUp: bulkMenuUp, menuStyle: bulkMenuStyle, position: positionBulk, re
 const filteredItems = computed(() => (
     activeTab.value === 'all'
         ? items.value
-        : items.value.filter((item) => normalizeGroup(item.source_group) === activeTab.value)
+        : items.value.filter((item) => item.source_group === activeTab.value)
 ));
 
 const unreadItems = computed(() => filteredItems.value.filter((item) => Number(item.unread_count || 0) > 0));
 const readItems = computed(() => filteredItems.value.filter((item) => Number(item.unread_count || 0) <= 0));
 
+// "All" plus one tab per source family present in the list, with its unread count.
 const tabs = computed(() => {
-    const presentGroups = {};
-    const unreadCounts = {};
+    const unreadCounts = new Map();
     items.value.forEach((item) => {
-        const group = normalizeGroup(item.source_group);
-        presentGroups[group] = true;
-        unreadCounts[group] = Number(unreadCounts[group] || 0) + Math.max(0, Number(item.unread_count || 0));
+        unreadCounts.set(item.source_group, (unreadCounts.get(item.source_group) || 0) + item.unread_count);
     });
 
-    const list_ = [{ key: 'all', label: t('All'), count: Math.max(0, Number(unreadTotal.value || 0)) }];
-    SOURCE_GROUP_ORDER.forEach((group) => {
-        if (presentGroups[group]) {
-            list_.push({ key: group, label: getGroupLabel(t, group), count: Number(unreadCounts[group] || 0) });
-        }
-    });
-    Object.keys(presentGroups)
-        .filter((group) => !SOURCE_GROUP_ORDER.includes(group))
-        .sort()
-        .forEach((group) => {
-            list_.push({ key: group, label: getGroupLabel(t, group), count: Number(unreadCounts[group] || 0) });
-        });
-    return list_;
+    return [
+        { key: 'all', label: t('All'), count: unreadTotal.value },
+        ...SOURCE_GROUP_ORDER
+            .filter((group) => unreadCounts.has(group))
+            .map((group) => ({ key: group, label: getGroupLabel(t, group), count: unreadCounts.get(group) })),
+    ];
 });
 
 const selectedVisibleIds = computed(() => filteredItems.value
@@ -328,7 +323,7 @@ const allVisibleSelected = computed(() => filteredItems.value.length > 0
     && selectedVisibleCount.value === filteredItems.value.length);
 
 const headerSub = computed(() => (unreadTotal.value > 0
-    ? `${unreadTotal.value} ${t('unread')}`
+    ? formatCount(t('Unread: %d'), unreadTotal.value)
     : t('All caught up')));
 const soundToggleLabel = computed(() => (soundMuted.value ? t('Sound off') : t('Sound on')));
 const soundToggleTitle = computed(() => (soundMuted.value ? t('Enable notification sound') : t('Mute notification sound')));
@@ -570,7 +565,7 @@ function showNewNotificationsToast(changes, newCount) {
         const item = entry && entry.item ? entry.item : {};
         const added = Math.max(1, Number(entry && entry.added ? entry.added : 1));
         const sourceLabel = getItemSourceLabel(t, item);
-        const title = String(getDisplayTitle(t, item) || t('Notification')).trim();
+        const title = item.display_title || t('Notification');
         const addedLabel = added > 1 ? ` (+${added})` : '';
         const text = `${sourceLabel}: ${title}${addedLabel}`;
         const safeUrl = sanitizeToastUrl(item.target_url);
@@ -580,7 +575,7 @@ function showNewNotificationsToast(changes, newCount) {
     });
 
     if (changesList.length > visible.length) {
-        entries.push(`<div class="text-muted">+${changesList.length - visible.length} ${escapeHtml(t('more notifications'))}</div>`);
+        entries.push(`<div class="text-muted">${escapeHtml(formatCount(t('Further notifications: %d'), changesList.length - visible.length))}</div>`);
     }
     entries.push(`<div><a href="${escapeHtml(props.config.centerUrl)}">${escapeHtml(t('Open notification list'))}</a></div>`);
 

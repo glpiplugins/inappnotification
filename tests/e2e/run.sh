@@ -1,5 +1,34 @@
 #!/usr/bin/env bash
+
 #
+# -------------------------------------------------------------------------
+# InAppNotification plugin for GLPI
+#
+# https://github.com/glpiplugins/inappnotification
+#
+# @copyright 2026 Roy Brannath
+# @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+# -------------------------------------------------------------------------
+#
+# LICENSE
+#
+# This file is part of InAppNotification.
+#
+# InAppNotification is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# InAppNotification is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+# -------------------------------------------------------------------------
+#
+
 # End-to-end tests of inappnotification in a throw-away GLPI environment (Docker): upgrade from
 # the 1.2.3 schema, uninstall, fresh install, the JSON endpoint of the bell (rights, CSRF, per-user
 # isolation, simplified interface), the plugin pages and, if Playwright is installed (npm ci), the
@@ -12,7 +41,7 @@
 #   E2E_KEEP=1 tests/e2e/run.sh      # keep the containers for inspection (http://127.0.0.1:$E2E_PORT)
 #   E2E_BROWSER=0 tests/e2e/run.sh   # skip the browser part
 #
-# Environment: GLPI_IMAGE (default: by branch, see below), DB_IMAGE (mariadb:11.8),
+# Environment: GLPI_IMAGE (glpi/glpi:12.0.0), DB_IMAGE (mariadb:11.8),
 # E2E_PREFIX, E2E_PORT, E2E_KEEP (0), E2E_BROWSER (1).
 
 set -euo pipefail
@@ -20,11 +49,10 @@ set -euo pipefail
 PLUGIN_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 FIXTURES="$PLUGIN_DIR/tests/e2e/fixtures"
 VERSION=$(sed -n "s/^define('PLUGIN_INAPPNOTIFICATION_VERSION', '\([^']*\)');/\1/p" "$PLUGIN_DIR/setup.php")
-GLPI_MAJOR=$(sed -n "/'min' =>/{s/.*'min' => '\([0-9]*\)\..*/\1/p;q}" "$PLUGIN_DIR/setup.php")
-GLPI_IMAGE=${GLPI_IMAGE:-$([ "$GLPI_MAJOR" = "12" ] && echo glpi/glpi:12.0.0 || echo glpi/glpi:11.0.8)}
+GLPI_IMAGE=${GLPI_IMAGE:-glpi/glpi:12.0.0}
 DB_IMAGE=${DB_IMAGE:-mariadb:11.8}
-PREFIX=${E2E_PREFIX:-inappnotification-e2e-$GLPI_MAJOR}
-PORT=${E2E_PORT:-$((18000 + GLPI_MAJOR))} # 18011 for GLPI 11, 18012 for GLPI 12
+PREFIX=${E2E_PREFIX:-inappnotification-e2e}
+PORT=${E2E_PORT:-18012}
 KEEP=${E2E_KEEP:-0}
 BROWSER=${E2E_BROWSER:-1}
 BASE="http://127.0.0.1:$PORT"
@@ -56,24 +84,17 @@ sql() { docker exec -i "$PREFIX-db" mariadb -N -uglpi -pglpi glpi -e "$1"; }
 console() { docker exec -u www-data "$PREFIX-app" php bin/console "$@" --no-interaction; }
 json() { python3 -c "import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1], {'d': d}))" "$1"; }
 
-# GLPI 11 needs the CSRF token of the login form and, for fetch()-like POSTs, the page token in
-# the X-Glpi-Csrf-Token header. GLPI 12 has no tokens (both stay empty) and checks Sec-Fetch-Site.
-CSRF=''
+# GLPI 12 has no CSRF tokens: it checks the Sec-Fetch-Site/Origin headers of requests with a body.
 login() {
     rm -f "$JAR"
-    local page token
-    page=$(curl -s -c "$JAR" -b "$JAR" "$BASE/index.php")
-    token=$(printf '%s' "$page" | grep -oE 'name="_glpi_csrf_token" value="[^"]+"' | head -1 | sed -E 's/.*value="([^"]+)"/\1/' || true)
-    curl -s -c "$JAR" -b "$JAR" -o /dev/null -X POST "$BASE/front/login.php" \
-        --data-urlencode "login_name=$1" --data-urlencode "login_password=$2" --data-urlencode auth=local \
-        ${token:+--data-urlencode "_glpi_csrf_token=$token"}
-    CSRF=$(http "$BASE/front/central.php" | grep -oE 'property="glpi:csrf_token" content="[^"]+"' | head -1 \
-        | sed -E 's/.*content="([^"]+)"/\1/' || true)
+    curl -s -c "$JAR" -b "$JAR" -o /dev/null "$BASE/index.php"
+    curl -s -c "$JAR" -b "$JAR" -o /dev/null -X POST -H 'Sec-Fetch-Site: same-origin' "$BASE/front/login.php" \
+        --data-urlencode "login_name=$1" --data-urlencode "login_password=$2" --data-urlencode auth=local
 }
 # Browser-like same-origin request with the current session.
 http() { curl -s -c "$JAR" -b "$JAR" -H 'Sec-Fetch-Site: same-origin' "$@"; }
 # POST like the bell's fetch() does.
-post() { http -X POST -H 'X-Requested-With: XMLHttpRequest' ${CSRF:+-H "X-Glpi-Csrf-Token: $CSRF"} "$@"; }
+post() { http -X POST -H 'X-Requested-With: XMLHttpRequest' "$@"; }
 code() { http -o /dev/null -w '%{http_code}' "$@"; }
 
 log_lines() { docker exec "$PREFIX-app" sh -c 'cat /var/glpi/logs/php-errors.log 2>/dev/null | wc -l'; }
@@ -82,6 +103,12 @@ plugin_log_entries() {
     docker exec "$PREFIX-app" sh -c "tail -n +$(($1 + 1)) /var/glpi/logs/php-errors.log 2>/dev/null" \
         | awk '/^\[/{if (b) print b; b=$0; next} {b=b"\n"$0} END{if (b) print b}' \
         | grep -i 'inappnotification' || true
+}
+# Columns of the plugin tables that 2.2.0 removed (no longer used).
+dropped_columns() {
+    sql "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='glpi'
+         AND table_name LIKE 'glpi_plugin_inappnotification%'
+         AND column_name IN ('kind_label','savedsearches_id','savedsearch_alerts_id','source_label')"
 }
 column_types() {
     sql "SELECT GROUP_CONCAT(DISTINCT data_type) FROM information_schema.columns WHERE table_schema='glpi'
@@ -116,6 +143,7 @@ assert_contains "plugin enabled" "$(console plugin:list | grep inappnotification
 assert_eq "entries kept" "$(sql "SELECT GROUP_CONCAT(alert_name ORDER BY id) FROM glpi_plugin_inappnotification_alerts")" "Upgrade test 1,Upgrade test 2"
 assert_eq "snooze date kept" "$(sql "SELECT snoozed_until FROM glpi_plugin_inappnotification_alerts WHERE alert_fingerprint='upgradetest:2'")" "2026-10-30 12:00:00"
 assert_eq "date columns are TIMESTAMP" "$(column_types)" "timestamp"
+assert_eq "unused columns dropped" "$(dropped_columns)" "0"
 assert_eq "automatic action" "$(sql "SELECT name FROM glpi_crontasks WHERE itemtype='PluginInappnotificationScheduledTask'")" "RefreshUpcoming"
 assert_eq "profile right" "$(sql "SELECT COUNT(*) > 0 FROM glpi_profilerights WHERE name='plugin_inappnotification_upcoming_all'")" "1"
 assert_eq "in-app mode enabled" "$(sql "SELECT value FROM glpi_configs WHERE context='core' AND name='notifications_inapp'")" "1"
@@ -126,10 +154,12 @@ console plugin:uninstall inappnotification >/dev/null
 assert_eq "tables dropped" "$(sql "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='glpi' AND table_name LIKE 'glpi_plugin_inappnotification%'")" "0"
 assert_eq "profile right removed" "$(sql "SELECT COUNT(*) FROM glpi_profilerights WHERE name='plugin_inappnotification_upcoming_all'")" "0"
 assert_eq "automatic action removed" "$(sql "SELECT COUNT(*) FROM glpi_crontasks WHERE itemtype='PluginInappnotificationScheduledTask'")" "0"
+assert_eq "settings removed" "$(sql "SELECT COUNT(*) FROM glpi_configs WHERE context='plugin:inappnotification' OR (context='core' AND name='notifications_inapp')")" "0"
 console plugin:install inappnotification --username=glpi >/dev/null
 console plugin:activate inappnotification >/dev/null
 assert_eq "three tables" "$(sql "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='glpi' AND table_name LIKE 'glpi_plugin_inappnotification%'")" "3"
 assert_eq "date columns are TIMESTAMP" "$(column_types)" "timestamp"
+assert_eq "no unused columns" "$(dropped_columns)" "0"
 assert_eq "automatic action" "$(sql "SELECT COUNT(*) FROM glpi_crontasks WHERE itemtype='PluginInappnotificationScheduledTask'")" "1"
 assert_eq "no plugin entries in php-errors.log" "$(plugin_log_entries "$LOG0")" ""
 
@@ -147,9 +177,6 @@ assert_not_contains "list hides other users' entries" "$LIST" '"normal alert"'
 assert_eq "GET on an action" "$(code "$API/mark_all_read")" "405"
 assert_eq "unknown action" "$(post -o /dev/null -w '%{http_code}' "$API/drop_tables")" "404"
 assert_eq "cross-site POST" "$(curl -s -o /dev/null -w '%{http_code}' -c "$JAR" -b "$JAR" -H 'Sec-Fetch-Site: cross-site' -X POST "$API/mark_read" --data "id=$OWN")" "403"
-if [ -n "$CSRF" ]; then
-    assert_eq "POST without CSRF token" "$(http -o /dev/null -w '%{http_code}' -X POST -H 'X-Requested-With: XMLHttpRequest' "$API/mark_read" --data "id=$OWN")" "403"
-fi
 assert_eq "mark_read on another user's entry" "$(post "$API/mark_read" --data "id=$FOREIGN" | json "d['success']")" "1"
 assert_eq "... leaves it unread" "$(sql "SELECT is_read FROM glpi_plugin_inappnotification_alerts WHERE id=$FOREIGN")" "0"
 assert_eq "mark_read on own entry" "$(post "$API/mark_read" --data "id=$OWN" | json "d['data']['unread_total']")" "0"
@@ -161,20 +188,22 @@ assert_eq "simplified interface user may use the bell" "$(http "$API" | json "d[
 
 section "Pages"
 login glpi glpi
-for page in center.php muted.php scheduled.php config.form.php; do
+for page in center.php muted.php scheduled.php config.form.php notificationinappsetting.form.php; do
     assert_eq "$page" "$(code "$BASE/plugins/inappnotification/front/$page")" "200"
 done
 assert_eq "scheduled_all.php without the right" "$(code "$BASE/plugins/inappnotification/front/scheduled_all.php")" "403"
-assert_eq "dev.php while switched off" "$(code "$BASE/plugins/inappnotification/front/dev.php")" "403"
+http -o /dev/null -X POST "$BASE/plugins/inappnotification/front/notificationinappsetting.form.php" --data test_inapp_send=1
+assert_eq "test notification from the mode settings" "$(sql "SELECT COUNT(*) FROM glpi_plugin_inappnotification_alerts WHERE users_id=$GLPI_ID AND alert_name='InAppNotification test'")" "1"
+http -o /dev/null -X POST "$BASE/plugins/inappnotification/front/config.form.php" --data update=1 --data capture_ticket=0
+assert_eq "settings saved" "$(sql "SELECT value FROM glpi_configs WHERE context='plugin:inappnotification' AND name='capture_ticket'")" "0"
+http -o /dev/null -X POST "$BASE/plugins/inappnotification/front/config.form.php" --data update=1 --data capture_ticket=1 \
+    --data capture_savedsearch=1 --data capture_project=1 --data capture_reminder=1 --data capture_sla=1 \
+    --data capture_crontask=1 --data capture_other=1
 assert_eq "no plugin entries in php-errors.log" "$(plugin_log_entries "$LOG0")" ""
 
 section "Active sub-entity"
 # The bell counts the user's own entries across entities; the lists must not hide them when a
 # sub-entity is active (entries of the root entity are not visible from there in GLPI search).
-refresh_csrf() {
-    CSRF=$(http "$BASE/front/central.php" | grep -oE 'property="glpi:csrf_token" content="[^"]+"' | head -1 \
-        | sed -E 's/.*content="([^"]+)"/\1/' || true)
-}
 search_count() { # search_count <page> <itemtype> -> number of rows the GLPI search of that page returns
     local page token
     page=$(http "$BASE/plugins/inappnotification/front/$1")
@@ -185,10 +214,9 @@ search_count() { # search_count <page> <itemtype> -> number of rows the GLPI sea
 }
 add_alert "$GLPI_ID" "glpi muted" 1 >/dev/null
 http -o /dev/null -X POST "$BASE/front/entity.form.php" --data-urlencode add=1 --data-urlencode "name=E2E School" \
-    --data-urlencode entities_id=0 ${CSRF:+--data-urlencode "_glpi_csrf_token=$CSRF"}
+    --data-urlencode entities_id=0
 SCHOOL=$(sql "SELECT id FROM glpi_entities WHERE name='E2E School'")
 assert_eq "sub-entity created" "$([ -n "$SCHOOL" ] && echo yes)" "yes"
-refresh_csrf
 post -o /dev/null "$BASE/Session/ChangeEntity" --data "id=$SCHOOL&is_recursive=0"
 OWN_TOTAL=$(sql "SELECT COUNT(*) FROM glpi_plugin_inappnotification_alerts WHERE users_id=$GLPI_ID")
 assert_eq "notification list shows all own entries" "$(search_count center.php AlertEntry)" "$OWN_TOTAL"

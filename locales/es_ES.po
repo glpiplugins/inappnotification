@@ -1,0 +1,481 @@
+# InAppNotification plugin for GLPI – Spanish (Spain)
+# Copyright (C) 2026 Roy Brannath
+# This file is distributed under the same license as the InAppNotification package (GPL-3.0-or-later).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: InAppNotification 2.2.0\n"
+"Report-Msgid-Bugs-To: https://github.com/glpiplugins/inappnotification/issues\n"
+"POT-Creation-Date: 2026-11-18 16:59+0000\n"
+"PO-Revision-Date: 2026-11-18 16:59+0000\n"
+"Last-Translator: \n"
+"Language-Team: Spanish (Spain)\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: templates/notification_setting.html.twig
+msgid "InAppNotification is enabled. Use plugin settings to configure filters and sources."
+msgstr "InAppNotification está activado. Los filtros y las fuentes se configuran en los ajustes del complemento."
+
+#: templates/notification_setting.html.twig
+msgid "Open InAppNotification settings"
+msgstr "Abrir los ajustes de InAppNotification"
+
+#: templates/notification_setting.html.twig
+msgid "Send a test in-app notification to you"
+msgstr "Enviarme una notificación de prueba en la aplicación"
+
+#: templates/config.html.twig
+msgid "InAppNotification settings"
+msgstr "Ajustes de InAppNotification"
+
+#: templates/config.html.twig
+msgid "Capture sources"
+msgstr "Fuentes capturadas"
+
+#: templates/config.html.twig
+msgid "Choose which source families are persisted as in-app notifications."
+msgstr "Elija qué familias de fuentes se guardan como notificaciones en la aplicación."
+
+#: templates/config.html.twig
+msgid "Ticket filter"
+msgstr "Filtro de solicitudes"
+
+#: templates/config.html.twig
+msgid "Optional ticket-specific rule for captured ticket alerts."
+msgstr "Regla opcional para las notificaciones de solicitudes capturadas."
+
+#: templates/config.html.twig
+msgid "Capture only open tickets"
+msgstr "Capturar solo las solicitudes abiertas"
+
+#: templates/config.html.twig
+msgid "Itemtype filters"
+msgstr "Filtros por tipo de elemento"
+
+#: templates/config.html.twig
+msgid "Optional CSV filters by GLPI class/itemtype names."
+msgstr "Listas opcionales de nombres de clases de GLPI (tipos de elemento), separados por comas."
+
+#: templates/config.html.twig
+msgid "Include only itemtypes (CSV)"
+msgstr "Capturar solo estos tipos de elemento (separados por comas)"
+
+#: templates/config.html.twig
+msgid "Exclude itemtypes (CSV)"
+msgstr "Excluir estos tipos de elemento (separados por comas)"
+
+#: front/center.php:50 front/scheduled.php:46
+msgid "Upcoming notifications"
+msgstr "Próximas notificaciones"
+
+#: front/center.php:57
+msgid "All users upcoming"
+msgstr "Próximas (todos los usuarios)"
+
+#: front/center.php:64
+msgid "Manage snoozed/suppressed"
+msgstr "Gestionar las pospuestas y ocultas"
+
+#: front/notificationinappsetting.form.php:36
+msgid "Test notification sent. It appears in your notification bell."
+msgstr "Notificación de prueba enviada. Aparece en su campana de notificaciones."
+
+#: front/notificationinappsetting.form.php:39
+msgid "The test notification was not stored. Check that tickets are captured in the plugin settings."
+msgstr "La notificación de prueba no se ha guardado. Compruebe que las solicitudes se capturan en los ajustes del complemento."
+
+#: front/scheduled_all.php:47
+msgid "Upcoming notifications (all users)"
+msgstr "Próximas notificaciones (todos los usuarios)"
+
+#: front/scheduled_all.php:55 front/scheduled.php:54 front/muted.php:51
+msgid "Back to notifications"
+msgstr "Volver a las notificaciones"
+
+#: front/config.form.php:42
+msgid "Settings saved."
+msgstr "Ajustes guardados."
+
+#: front/config.form.php:46 setup.php:51 src/ProfileTab.php:48 src/Dashboard/CardRegistry.php:54
+msgid "InAppNotification"
+msgstr "InAppNotification"
+
+#: front/config.form.php:51
+msgid "Saved searches"
+msgstr "Búsquedas guardadas"
+
+#: front/config.form.php:52
+msgid "Tickets"
+msgstr "Solicitudes"
+
+#: front/config.form.php:53
+msgid "Projects"
+msgstr "Proyectos"
+
+#: front/config.form.php:54
+msgid "Reminders"
+msgstr "Recordatorios"
+
+#: front/config.form.php:55
+msgid "SLA / SLM"
+msgstr "ANS / SLM"
+
+#: front/config.form.php:56
+msgid "Automatic actions"
+msgstr "Acciones automáticas"
+
+#: front/config.form.php:57
+msgid "Other alert sources"
+msgstr "Otras fuentes"
+
+#: front/muted.php:43
+msgid "Muted in-app notifications"
+msgstr "Notificaciones silenciadas en la aplicación"
+
+#: setup.php:71
+msgid "InAppNotification (In-app)"
+msgstr "InAppNotification (en la aplicación)"
+
+#: setup.php:109
+msgid "All"
+msgstr "Todas"
+
+#: setup.php:110 src/Service/AlertStore.php:482
+msgid "Ticket"
+msgstr "Solicitud"
+
+#: setup.php:111
+msgid "Search"
+msgstr "Búsqueda"
+
+#: setup.php:112 src/Service/AlertStore.php:483
+msgid "Project"
+msgstr "Proyecto"
+
+#: setup.php:113 src/Service/AlertStore.php:484
+msgid "Reminder"
+msgstr "Recordatorio"
+
+#: setup.php:114 src/Service/AlertStore.php:485
+msgid "SLA"
+msgstr "ANS"
+
+#: setup.php:115 src/Service/AlertStore.php:486
+msgid "Automatic action"
+msgstr "Acción automática"
+
+#: setup.php:116 src/Service/AlertStore.php:487
+msgid "Other"
+msgstr "Otra"
+
+#: setup.php:117
+msgid "Notification types"
+msgstr "Tipos de notificación"
+
+#: setup.php:118
+msgid "Loading..."
+msgstr "Cargando..."
+
+#: setup.php:119
+msgid "No notifications yet"
+msgstr "Todavía no hay notificaciones"
+
+#: setup.php:120
+msgid "No notifications in this category"
+msgstr "No hay notificaciones en esta categoría"
+
+#: setup.php:121 src/AlertEntry.php:151
+msgid "Unread"
+msgstr "Sin leer"
+
+#: setup.php:122
+msgid "Recently read"
+msgstr "Leídas recientemente"
+
+#: setup.php:123
+msgid "Notification Center"
+msgstr "Centro de notificaciones"
+
+#. TRANS: %d is the number of unread notifications
+#: setup.php:125
+#, php-format
+msgid "Unread: %d"
+msgstr "Sin leer: %d"
+
+#: setup.php:126
+msgid "All caught up"
+msgstr "Todo leído"
+
+#: setup.php:127
+msgid "Sound off"
+msgstr "Sonido desactivado"
+
+#: setup.php:128
+msgid "Sound on"
+msgstr "Sonido activado"
+
+#: setup.php:129
+msgid "Enable notification sound"
+msgstr "Activar el sonido de las notificaciones"
+
+#: setup.php:130
+msgid "Mute notification sound"
+msgstr "Silenciar el sonido de las notificaciones"
+
+#: setup.php:131
+msgid "Mark all as read"
+msgstr "Marcar todas como leídas"
+
+#: setup.php:132
+msgid "Select item"
+msgstr "Seleccionar la notificación"
+
+#: setup.php:133
+msgid "Actions"
+msgstr "Acciones"
+
+#: setup.php:134
+msgid "Mark as read"
+msgstr "Marcar como leída"
+
+#: setup.php:135
+msgid "Mark as unread"
+msgstr "Marcar como no leída"
+
+#: setup.php:136
+msgid "Snooze 1 day"
+msgstr "Posponer 1 día"
+
+#: setup.php:137
+msgid "Suppress"
+msgstr "Ocultar"
+
+#: setup.php:138
+msgid "Select all"
+msgstr "Seleccionar todas"
+
+#: setup.php:139
+msgid "Open list"
+msgstr "Abrir la lista"
+
+#: setup.php:140
+msgid "Muted items"
+msgstr "Silenciadas"
+
+#: setup.php:141
+msgid "Notification"
+msgstr "Notificación"
+
+#. TRANS: %d is the number of further new notifications not listed in the toast
+#: setup.php:143
+#, php-format
+msgid "Further notifications: %d"
+msgstr "Otras notificaciones: %d"
+
+#: setup.php:144
+msgid "Open notification list"
+msgstr "Abrir la lista de notificaciones"
+
+#: setup.php:145
+msgid "Notifications"
+msgstr "Notificaciones"
+
+#: setup.php:146
+msgid "Test sound"
+msgstr "Probar el sonido"
+
+#: setup.php:148
+msgid "Sound blocked by the browser: click anywhere on the page, or allow autoplay for this site."
+msgstr "Sonido bloqueado por el navegador: haga clic en cualquier parte de la página o permita la reproducción automática para este sitio."
+
+#: setup.php:209
+msgid "Rebuild the upcoming in-app notifications list"
+msgstr "Reconstruir la lista de próximas notificaciones en la aplicación"
+
+#: src/ScheduledEntry.php:54
+msgid "Upcoming notification"
+msgid_plural "Upcoming notifications"
+msgstr[0] "Próxima notificación"
+msgstr[1] "Próximas notificaciones"
+
+#: src/ScheduledEntry.php:105
+msgid "Notification type"
+msgstr "Tipo de notificación"
+
+#: src/ScheduledEntry.php:240
+msgid "Recipients from notification targets"
+msgstr "Destinatarios según los destinos de la notificación"
+
+#: src/Controller/NotificationController.php:82
+msgid "Unsupported action"
+msgstr "Acción no admitida"
+
+#: src/PluginInappnotificationNotificationInappSetting.php:42
+msgid "InAppNotification in-app notifications"
+msgstr "Notificaciones en la aplicación (InAppNotification)"
+
+#: src/PluginInappnotificationNotificationInappSetting.php:48
+msgid "Enable InAppNotification in-app notifications"
+msgstr "Activar las notificaciones en la aplicación (InAppNotification)"
+
+#: src/MutedAlertEntry.php:48
+msgid "Muted notification"
+msgid_plural "Muted notifications"
+msgstr[0] "Notificación silenciada"
+msgstr[1] "Notificaciones silenciadas"
+
+#: src/ProfileTab.php:80
+msgid "View all users upcoming notifications"
+msgstr "Ver las próximas notificaciones de todos los usuarios"
+
+#: src/AlertEntry.php:54
+msgid "In-app notification"
+msgid_plural "In-app notifications"
+msgstr[0] "Notificación en la aplicación"
+msgstr[1] "Notificaciones en la aplicación"
+
+#: src/AlertEntry.php:74
+msgid "In-app notifications"
+msgstr "Notificaciones en la aplicación"
+
+#: src/AlertEntry.php:143
+msgid "Occurrences"
+msgstr "Repeticiones"
+
+#: src/AlertEntry.php:167
+msgid "Source"
+msgstr "Fuente"
+
+#: src/AlertEntry.php:184
+msgid "Suppressed"
+msgstr "Oculta"
+
+#: src/AlertEntry.php:192
+msgid "Snoozed until"
+msgstr "Pospuesta hasta"
+
+#: src/AlertEntry.php:275 src/AlertEntry.php:285
+msgid "Reactivate"
+msgstr "Reactivar"
+
+#: src/PluginInappnotificationScheduledTask.php:49
+msgid "Refresh upcoming in-app notifications"
+msgstr "Actualizar las próximas notificaciones en la aplicación"
+
+#: src/PluginInappnotificationNotificationInapp.php:64
+msgid "InAppNotification test"
+msgstr "Prueba de InAppNotification"
+
+#: src/PluginInappnotificationNotificationInapp.php:65
+msgid "This is a test in-app notification from InAppNotification."
+msgstr "Esta es una notificación de prueba de InAppNotification."
+
+#: src/Dashboard/CardProvider.php:44 src/Dashboard/CardProvider.php:59 src/Dashboard/CardRegistry.php:57
+msgid "Unread notifications"
+msgstr "Notificaciones sin leer"
+
+#: src/Dashboard/CardProvider.php:53
+msgid "Unread saved searches"
+msgstr "Sin leer: búsquedas guardadas"
+
+#: src/Dashboard/CardProvider.php:54
+msgid "Unread tickets"
+msgstr "Sin leer: solicitudes"
+
+#: src/Dashboard/CardProvider.php:55
+msgid "Unread projects"
+msgstr "Sin leer: proyectos"
+
+#: src/Dashboard/CardProvider.php:56
+msgid "Unread reminders"
+msgstr "Sin leer: recordatorios"
+
+#: src/Dashboard/CardProvider.php:57
+msgid "Unread SLA"
+msgstr "Sin leer: ANS"
+
+#: src/Dashboard/CardProvider.php:58
+msgid "Unread automatic actions"
+msgstr "Sin leer: acciones automáticas"
+
+#: src/Dashboard/CardRegistry.php:62
+msgid "Unread saved search notifications"
+msgstr "Notificaciones de búsquedas guardadas sin leer"
+
+#: src/Dashboard/CardRegistry.php:67
+msgid "Unread ticket notifications"
+msgstr "Notificaciones de solicitudes sin leer"
+
+#: src/Dashboard/CardRegistry.php:72
+msgid "Unread project notifications"
+msgstr "Notificaciones de proyectos sin leer"
+
+#: src/Dashboard/CardRegistry.php:77
+msgid "Unread reminder notifications"
+msgstr "Notificaciones de recordatorios sin leer"
+
+#: src/Dashboard/CardRegistry.php:82
+msgid "Unread SLA notifications"
+msgstr "Notificaciones de ANS sin leer"
+
+#: src/Dashboard/CardRegistry.php:87
+msgid "Unread automatic action notifications"
+msgstr "Notificaciones de acciones automáticas sin leer"
+
+#: src/Service/ScheduledNotificationStore.php:101
+msgid "Automatic resolution"
+msgstr "Resolución automática"
+
+#: src/Service/ScheduledNotificationStore.php:102
+msgid "Scheduled alert"
+msgstr "Alerta programada"
+
+#: src/Service/ScheduledNotificationStore.php:114
+#, php-format
+msgid "Reminder %s before start"
+msgstr "Recordatorio %s antes del inicio"
+
+#: src/Service/ScheduledNotificationStore.php:115
+msgid "Reminder at start time"
+msgstr "Recordatorio a la hora de inicio"
+
+#: src/Service/ScheduledNotificationStore.php:117 src/Service/ScheduledNotificationStore.php:120
+#, php-format
+msgid "Pending reason: %s"
+msgstr "Motivo de espera: %s"
+
+#: src/Service/ScheduledNotificationStore.php:118
+msgid "Pending reason reminder"
+msgstr "Recordatorio del motivo de espera"
+
+#: src/Service/ScheduledNotificationStore.php:121
+msgid "Pending reason resolution"
+msgstr "Resolución del motivo de espera"
+
+#: src/Service/ScheduledNotificationStore.php:123
+msgid "Threshold"
+msgstr "Umbral"
+
+#: src/Service/AlertStore.php:90
+#, php-format
+msgid "%s notification"
+msgstr "Notificación: %s"
+
+#: src/Service/AlertStore.php:93
+#, php-format
+msgid "%s alert triggered."
+msgstr "%s: notificación activada."
+
+#: src/Service/AlertStore.php:481
+msgid "Saved search"
+msgstr "Búsqueda guardada"
+
+#: src/ScheduledGlobalEntry.php:49
+msgid "Upcoming notification (all users)"
+msgid_plural "Upcoming notifications (all users)"
+msgstr[0] "Próxima notificación (todos los usuarios)"
+msgstr[1] "Próximas notificaciones (todos los usuarios)"

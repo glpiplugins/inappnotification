@@ -1,16 +1,53 @@
 <?php
 
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 namespace GlpiPlugin\Inappnotification;
 
 use CommonDBTM;
+use Dropdown;
 use ExtraVisibilityCriteria;
 use Glpi\Search\DefaultSearchRequestInterface;
+use GlpiPlugin\Inappnotification\Service\ScheduledNotificationStore;
+use Override;
 use Session;
 use User;
 
+/**
+ * The logged-in user's upcoming notifications as a search itemtype (projected from the all-users
+ * table by ScheduledNotificationStore::refreshForUser()).
+ */
 class ScheduledEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultSearchRequestInterface
 {
-    public static string $rightname = 'bookmark_public';
+    /** Column holding the recipient's users_id. */
+    protected const RECIPIENT_FIELD = 'users_id';
 
     public static function getTypeName($nb = 0): string
     {
@@ -29,123 +66,120 @@ class ScheduledEntry extends CommonDBTM implements ExtraVisibilityCriteria, Defa
 
     public static function getTable($classname = null): string
     {
-        return 'glpi_plugin_inappnotification_scheduled';
+        return ScheduledNotificationStore::TABLE;
     }
 
     public static function getVisibilityCriteria(bool $forceall = false): array
     {
         $users_id = (int) Session::getLoginUserID();
         if ($users_id <= 0) {
-            return ['WHERE' => [self::getTable() . '.id' => 0]];
+            return ['WHERE' => [static::getTable() . '.id' => 0]];
         }
 
-        return ['WHERE' => [self::getTable() . '.users_id' => $users_id]];
+        return ['WHERE' => [static::getTable() . '.users_id' => $users_id]];
     }
 
     public function rawSearchOptions(): array
     {
-        $tab = [];
+        $table = static::getTable();
 
-        $tab[] = [
-            'id'   => 'common',
-            'name' => __('Characteristics'),
+        return [
+            [
+                'id'   => 'common',
+                'name' => __('Characteristics'),
+            ],
+            [
+                'id'            => 1,
+                'table'         => $table,
+                'itemtype'      => static::class,
+                'field'         => 'scheduled_at',
+                'name'          => __('Date'),
+                'datatype'      => 'datetime',
+                'massiveaction' => false,
+            ],
+            [
+                'id'            => 2,
+                'table'         => $table,
+                'itemtype'      => static::class,
+                'field'         => 'kind',
+                'name'          => __('Notification type', 'inappnotification'),
+                'datatype'      => 'specific',
+                'searchtype'    => ['equals', 'notequals'],
+                'massiveaction' => false,
+            ],
+            [
+                'id'            => 7,
+                'table'         => $table,
+                'itemtype'      => static::class,
+                'field'         => 'itemtype',
+                'name'          => __('Type'),
+                'datatype'      => 'itemtypename',
+                'massiveaction' => false,
+            ],
+            [
+                'id'               => 3,
+                'table'            => $table,
+                'itemtype'         => static::class,
+                'field'            => 'recipient_label',
+                'name'             => __('Recipient'),
+                'datatype'         => 'specific',
+                'additionalfields' => [static::RECIPIENT_FIELD],
+                'massiveaction'    => false,
+            ],
+            [
+                'id'               => 4,
+                'table'            => $table,
+                'itemtype'         => static::class,
+                'field'            => 'item_label',
+                'name'             => __('Item'),
+                'datatype'         => 'specific',
+                'additionalfields' => ['item_url'],
+                'massiveaction'    => false,
+            ],
+            [
+                'id'               => 5,
+                'table'            => $table,
+                'itemtype'         => static::class,
+                'field'            => 'detail',
+                'name'             => __('Details'),
+                'datatype'         => 'specific',
+                'additionalfields' => ['kind'],
+                'massiveaction'    => false,
+            ],
+            [
+                'id'            => 6,
+                'table'         => $table,
+                'itemtype'      => static::class,
+                'field'         => 'entity_label',
+                'name'          => __('Entity'),
+                'datatype'      => 'string',
+                'massiveaction' => false,
+            ],
         ];
-
-        $tab[] = [
-            'id'            => 1,
-            'table'         => self::getTable(),
-            'field'         => 'scheduled_at',
-            'name'          => __('When'),
-            'itemtype'      => self::class,
-            'datatype'      => 'datetime',
-            'massiveaction' => false,
-        ];
-
-        $tab[] = [
-            'id'            => 2,
-            'table'         => self::getTable(),
-            'field'         => 'kind_label',
-            'name'          => __('Notification type', 'inappnotification'),
-            'itemtype'      => self::class,
-            'datatype'      => 'string',
-            'massiveaction' => false,
-        ];
-
-        $tab[] = [
-            'id'            => 7,
-            'table'         => self::getTable(),
-            'field'         => 'itemtype',
-            'name'          => __('Type'),
-            'itemtype'      => self::class,
-            'datatype'      => 'itemtypename',
-            'massiveaction' => false,
-        ];
-
-        $tab[] = [
-            'id'            => 3,
-            'table'         => self::getTable(),
-            'field'         => 'recipient_label',
-            'name'          => __('Recipient'),
-            'itemtype'      => self::class,
-            'datatype'      => 'specific',
-            'massiveaction' => false,
-        ];
-
-        $tab[] = [
-            'id'            => 4,
-            'table'         => self::getTable(),
-            'field'         => 'item_label',
-            'name'          => __('Item'),
-            'itemtype'      => self::class,
-            'datatype'      => 'specific',
-            'massiveaction' => false,
-        ];
-
-        $tab[] = [
-            'id'            => 5,
-            'table'         => self::getTable(),
-            'field'         => 'detail',
-            'name'          => __('Details'),
-            'itemtype'      => self::class,
-            'datatype'      => 'text',
-            'massiveaction' => false,
-        ];
-
-        $tab[] = [
-            'id'            => 6,
-            'table'         => self::getTable(),
-            'field'         => 'entity_label',
-            'name'          => __('Entity'),
-            'itemtype'      => self::class,
-            'datatype'      => 'string',
-            'massiveaction' => false,
-        ];
-
-        return $tab;
     }
 
     /**
      * The user's own entries are visible whatever entity is active: per-user scoping is done by the
      * search restriction in hook.php, and `entities_id` only records the source item's entity.
-     * Otherwise GLPI search hides them in a sub-entity while the bell still counts them.
+     * Otherwise GLPI search hides them in a sub-entity.
      */
-    #[\Override]
+    #[Override]
     public function isEntityAssign()
     {
         return false;
     }
 
-    #[\Override]
+    #[Override]
     public static function getSearchURL($full = true)
     {
         global $CFG_GLPI;
 
-        // The plugin's list page (with its action buttons), not GLPI's generic list route, so the
-        // search form, sorting and paging stay there.
-        return ($full ? (string) ($CFG_GLPI['root_doc'] ?? '') : '') . '/plugins/inappnotification/front/scheduled.php';
+        // The plugin's list page, not GLPI's generic list route, so the search form, sorting and
+        // paging stay there.
+        return ($full ? $CFG_GLPI['root_doc'] : '') . '/plugins/inappnotification/front/scheduled.php';
     }
 
-    #[\Override]
+    #[Override]
     public static function getDefaultSearchRequest(): array
     {
         return [
@@ -155,108 +189,66 @@ class ScheduledEntry extends CommonDBTM implements ExtraVisibilityCriteria, Defa
         ];
     }
 
-    #[\Override]
+    #[Override]
     public static function getSpecificValueToDisplay($field, $values, array $options = [])
     {
         if (!is_array($values)) {
-            return parent::getSpecificValueToDisplay($field, $values, $options);
+            $values = [$field => $values];
         }
 
-        $row = self::loadRowFromValues($values, $options);
-        if (!is_array($row)) {
-            return parent::getSpecificValueToDisplay($field, $values, $options);
-        }
-
-        if ($field === 'recipient_label') {
-            return self::renderRecipientCell($row);
-        }
-
-        if ($field === 'item_label') {
-            return self::renderItemCell($row);
-        }
-
-        return parent::getSpecificValueToDisplay($field, $values, $options);
+        return match ($field) {
+            'kind' => htmlescape(ScheduledNotificationStore::getKindLabels()[$values['kind']] ?? $values['kind']),
+            'detail' => htmlescape(ScheduledNotificationStore::formatDetail((string) ($values['kind'] ?? ''), (string) $values['detail'])),
+            'recipient_label' => self::renderRecipient((string) $values['recipient_label'], (int) ($values[static::RECIPIENT_FIELD] ?? 0)),
+            'item_label' => self::renderLink((string) $values['item_label'], (string) ($values['item_url'] ?? '')),
+            default => parent::getSpecificValueToDisplay($field, $values, $options),
+        };
     }
 
-    #[\Override]
+    #[Override]
+    public static function getSpecificValueToSelect($field, $name = '', $values = '', array $options = [])
+    {
+        if ($field === 'kind') {
+            $options['display'] = false;
+            $options['value'] = is_array($values) ? ($values[$field] ?? '') : $values;
+
+            return Dropdown::showFromArray($name, ScheduledNotificationStore::getKindLabels(), $options);
+        }
+
+        return parent::getSpecificValueToSelect($field, $name, $values, $options);
+    }
+
+    #[Override]
     public function getName($options = [])
     {
-        return (string) ($this->fields['item_label'] ?? '');
+        return (string) $this->fields['item_label'];
     }
 
-    #[\Override]
+    #[Override]
     public function getLinkURL()
     {
-        $url = trim((string) ($this->fields['item_url'] ?? ''));
-        return $url !== '' ? $url : parent::getLinkURL();
+        return $this->fields['item_url'] !== '' ? $this->fields['item_url'] : parent::getLinkURL();
     }
 
     /**
-     * @param array<string, mixed> $values
-     * @param array<string, mixed> $options
-     * @return array<string, mixed>|null
+     * Recipient cell: the user (linked), or the recipients of the notification targets when they
+     * could not be resolved to users.
      */
-    private static function loadRowFromValues(array $values, array $options = []): ?array
+    private static function renderRecipient(string $label, int $users_id): string
     {
-        static $cache = null;
-
-        $id = (int) ($values['id'] ?? 0);
-        if ($id <= 0 && isset($options['raw_data']) && is_array($options['raw_data'])) {
-            $id = (int) ($options['raw_data']['id'] ?? 0);
-        }
-        if ($id <= 0) {
-            return null;
+        if ($users_id <= 0) {
+            return htmlescape(__('Recipients from notification targets', 'inappnotification'));
         }
 
-        if (!is_array($cache)) {
-            $cache = getAllDataFromTable(self::getTable());
-        }
-
-        return $cache[$id] ?? null;
+        return self::renderLink($label, User::getFormURLWithID($users_id));
     }
 
-    /**
-     * @param array<string, mixed> $row
-     */
-    private static function renderRecipientCell(array $row): string
+    private static function renderLink(string $label, string $url): string
     {
-        $label = trim((string) ($row['recipient_label'] ?? ''));
-        if ($label === '') {
-            return '';
-        }
-
-        $recipient_users_id = (int) ($row['recipient_users_id'] ?? 0);
-        if ($recipient_users_id <= 0) {
-            return htmlescape($label);
-        }
-
-        $url = User::getFormURLWithID($recipient_users_id);
-        return sprintf(
-            "<a href='%s'>%s</a>",
-            htmlescape($url),
-            htmlescape($label)
-        );
-    }
-
-    /**
-     * @param array<string, mixed> $row
-     */
-    private static function renderItemCell(array $row): string
-    {
-        $label = trim((string) ($row['item_label'] ?? ''));
-        if ($label === '') {
-            $label = __('Item');
-        }
-
-        $url = trim((string) ($row['item_url'] ?? ''));
         if ($url === '') {
             return htmlescape($label);
         }
 
-        return sprintf(
-            "<a href='%s'>%s</a>",
-            htmlescape($url),
-            htmlescape($label)
-        );
+        return sprintf('<a href="%s">%s</a>', htmlescape($url), htmlescape($label));
     }
 }

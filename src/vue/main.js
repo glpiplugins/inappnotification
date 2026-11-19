@@ -1,3 +1,32 @@
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 import './inappnotification.css';
 import BellApp from './BellApp.vue';
 
@@ -8,25 +37,11 @@ import BellApp from './BellApp.vue';
 (function () {
     const MOUNT_ID = 'inappnotification-bell-root';
 
+    // Server-rendered config + translated labels, delivered via a <meta> tag
+    // (see plugin_inappnotification_header_tags()). Absent when logged out.
     function getBootData() {
-        // Server-rendered config + translated labels, delivered via a <meta> tag
-        // (see plugin_inappnotification_header_tags()). Falls back to a global if present.
-        let data = window.INAPPNOTIFICATION || null;
-        if (!data) {
-            const meta = document.querySelector('meta[name="inappnotification:boot"]');
-            if (meta) {
-                try {
-                    data = JSON.parse(meta.getAttribute('content') || '{}');
-                } catch (e) {
-                    data = null;
-                }
-            }
-        }
-        data = data || {};
-        return {
-            config: data.config || {},
-            labels: data.labels || {},
-        };
+        const meta = document.querySelector('meta[name="inappnotification:boot"]');
+        return meta ? JSON.parse(meta.getAttribute('content')) : null;
     }
 
     function findUserMenu() {
@@ -57,23 +72,21 @@ import BellApp from './BellApp.vue';
 
         const host = document.createElement('div');
         host.className = 'nav-item dropdown inappnotification-bell-item';
-        host.innerHTML = `<div id="${MOUNT_ID}"></div>`;
+        const root = document.createElement('div');
+        root.id = MOUNT_ID;
+        host.append(root);
         userMenu.prepend(host);
 
-        const root = host.querySelector(`#${MOUNT_ID}`);
-        if (!root) {
-            return false;
-        }
-        if (root.__vue_app__ !== undefined) {
-            return true;
-        }
-
-        const { config, labels } = getBootData();
-        window.Vue.createApp(BellApp, { config, labels }).mount(root);
+        window.Vue.createApp(BellApp, boot).mount(root);
         return true;
     }
 
+    const boot = getBootData();
+
     function start() {
+        if (!boot) {
+            return;
+        }
         let tries = 0;
         const timer = window.setInterval(function () {
             tries += 1;

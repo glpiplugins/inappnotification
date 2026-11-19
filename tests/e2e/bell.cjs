@@ -1,3 +1,32 @@
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 // Browser scenarios of the notification bell, run by tests/e2e/run.sh against its throw-away GLPI:
 // several tabs (one poller, exactly one chime, failover, mute) with Web Locks and with the
 // localStorage fallback, a navigated tab taking over the chime, a suspended background poller, a
@@ -61,6 +90,8 @@ async function newContext(browser, { lease = false, noChannel = false } = {}) {
     return context;
 }
 
+// Opens a tab and waits for the first list the bell fetches on mount: it is the tab's starting
+// point, so a notification added while that request runs would not count as new.
 async function openBell(context, polls = null, index = 0) {
     const page = await context.newPage();
     if (polls) {
@@ -70,8 +101,10 @@ async function openBell(context, polls = null, index = 0) {
             }
         });
     }
+    const firstList = page.waitForResponse((response) => /\/Notifications\?/.test(response.url()));
     await page.goto(`${base}/front/central.php`);
     await page.waitForSelector('.inappnotification-bell-toggle');
+    await firstList;
     return page;
 }
 
@@ -242,10 +275,12 @@ async function withoutChannel(browser) {
     await unlockAudio(unlocked);
     await sleep(800);
     check('[standalone] mode', [(await roleOf(blocked)).mode, (await roleOf(unlocked)).mode], ['standalone', 'standalone']);
+    const badges = async () => [Number(await badgeOf(blocked)), Number(await badgeOf(unlocked))];
+    const before = await badges();
     addAlert('standalone');
     await sleep(POLL_WAIT_MS + 2000);
     check('[standalone] exactly one chime, from the tab that can play audio', await chimesOf([blocked, unlocked]), [0, 1]);
-    check('[standalone] both tabs show the new entry', [(await badgeOf(blocked)) !== '0', (await badgeOf(unlocked)) !== '0'], [true, true]);
+    check('[standalone] both tabs show the new entry', await badges(), before.map((count) => count + 1));
     await context.close();
 }
 

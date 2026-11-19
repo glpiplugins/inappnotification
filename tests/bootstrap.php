@@ -1,35 +1,61 @@
 <?php
 
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 declare(strict_types=1);
 
-// Unit tests run without a database. GLPI core classes come from the GLPI the tests run in
-// (official image: the plugin mounted under /var/www/glpi/plugins, see tools/check.sh), else from
-// the glpi-core checkout next to the plugin. Its autoloader is registered in front of the one of
-// the PHPUnit installation, so the plugin's item classes load against the matching core.
+// Unit tests run without a database. The PHPUnit installation of a GLPI checkout (see
+// tools/check.sh) already provides the GLPI core classes; otherwise they are loaded from the GLPI
+// the plugin is installed in.
 $pluginRoot = dirname(__DIR__);
-$glpiDir = getenv('GLPI_DIR') ?: '/var/www/glpi';
-$coreVendor = is_file($glpiDir . '/vendor/autoload.php')
-    ? $glpiDir . '/vendor/autoload.php'
-    : dirname($pluginRoot) . '/glpi-core/vendor/autoload.php';
-if (is_file($coreVendor)) {
-    require_once $coreVendor;
+if (!class_exists(CommonDBTM::class)) {
+    require_once (getenv('GLPI_DIR') ?: dirname($pluginRoot, 2)) . '/vendor/autoload.php';
 }
 
 if (!defined('GLPI_CONFIG_DIR')) {
     define('GLPI_CONFIG_DIR', sys_get_temp_dir() . '/inappnotification-tests-config');
 }
+
 if (!is_dir(GLPI_CONFIG_DIR)) {
-    @mkdir(GLPI_CONFIG_DIR, 0777, true);
+    mkdir(GLPI_CONFIG_DIR, 0o777, true);
 }
 
-// PSR-4 autoloader for the plugin's own classes (GLPI registers an equivalent at runtime).
+// The plugin's classes, as GLPI loads them at runtime: PSR-4 for the namespace, src/<Class>.php
+// for the global classes of the notification mode and the cron task.
 spl_autoload_register(static function (string $class) use ($pluginRoot): void {
     $prefix = 'GlpiPlugin\\Inappnotification\\';
-    if (!str_starts_with($class, $prefix)) {
+    $relative = str_starts_with($class, $prefix) ? substr($class, strlen($prefix)) : $class;
+    if ($relative === $class && !str_starts_with($class, 'PluginInappnotification')) {
         return;
     }
 
-    $relative = substr($class, strlen($prefix));
     $path = $pluginRoot . '/src/' . str_replace('\\', '/', $relative) . '.php';
     if (is_file($path)) {
         require_once $path;

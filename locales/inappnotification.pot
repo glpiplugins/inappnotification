@@ -1,0 +1,482 @@
+# InAppNotification plugin for GLPI
+# Copyright (C) 2026 Roy Brannath
+# This file is distributed under the same license as the InAppNotification package (GPL-3.0-or-later).
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: InAppNotification 2.2.0\n"
+"Report-Msgid-Bugs-To: https://github.com/glpiplugins/inappnotification/issues\n"
+"POT-Creation-Date: 2026-11-18 16:59+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: templates/notification_setting.html.twig
+msgid "InAppNotification is enabled. Use plugin settings to configure filters and sources."
+msgstr ""
+
+#: templates/notification_setting.html.twig
+msgid "Open InAppNotification settings"
+msgstr ""
+
+#: templates/notification_setting.html.twig
+msgid "Send a test in-app notification to you"
+msgstr ""
+
+#: templates/config.html.twig
+msgid "InAppNotification settings"
+msgstr ""
+
+#: templates/config.html.twig
+msgid "Capture sources"
+msgstr ""
+
+#: templates/config.html.twig
+msgid "Choose which source families are persisted as in-app notifications."
+msgstr ""
+
+#: templates/config.html.twig
+msgid "Ticket filter"
+msgstr ""
+
+#: templates/config.html.twig
+msgid "Optional ticket-specific rule for captured ticket alerts."
+msgstr ""
+
+#: templates/config.html.twig
+msgid "Capture only open tickets"
+msgstr ""
+
+#: templates/config.html.twig
+msgid "Itemtype filters"
+msgstr ""
+
+#: templates/config.html.twig
+msgid "Optional CSV filters by GLPI class/itemtype names."
+msgstr ""
+
+#: templates/config.html.twig
+msgid "Include only itemtypes (CSV)"
+msgstr ""
+
+#: templates/config.html.twig
+msgid "Exclude itemtypes (CSV)"
+msgstr ""
+
+#: front/center.php:50 front/scheduled.php:46
+msgid "Upcoming notifications"
+msgstr ""
+
+#: front/center.php:57
+msgid "All users upcoming"
+msgstr ""
+
+#: front/center.php:64
+msgid "Manage snoozed/suppressed"
+msgstr ""
+
+#: front/notificationinappsetting.form.php:36
+msgid "Test notification sent. It appears in your notification bell."
+msgstr ""
+
+#: front/notificationinappsetting.form.php:39
+msgid "The test notification was not stored. Check that tickets are captured in the plugin settings."
+msgstr ""
+
+#: front/scheduled_all.php:47
+msgid "Upcoming notifications (all users)"
+msgstr ""
+
+#: front/scheduled_all.php:55 front/scheduled.php:54 front/muted.php:51
+msgid "Back to notifications"
+msgstr ""
+
+#: front/config.form.php:42
+msgid "Settings saved."
+msgstr ""
+
+#: front/config.form.php:46 setup.php:51 src/ProfileTab.php:48 src/Dashboard/CardRegistry.php:54
+msgid "InAppNotification"
+msgstr ""
+
+#: front/config.form.php:51
+msgid "Saved searches"
+msgstr ""
+
+#: front/config.form.php:52
+msgid "Tickets"
+msgstr ""
+
+#: front/config.form.php:53
+msgid "Projects"
+msgstr ""
+
+#: front/config.form.php:54
+msgid "Reminders"
+msgstr ""
+
+#: front/config.form.php:55
+msgid "SLA / SLM"
+msgstr ""
+
+#: front/config.form.php:56
+msgid "Automatic actions"
+msgstr ""
+
+#: front/config.form.php:57
+msgid "Other alert sources"
+msgstr ""
+
+#: front/muted.php:43
+msgid "Muted in-app notifications"
+msgstr ""
+
+#: setup.php:71
+msgid "InAppNotification (In-app)"
+msgstr ""
+
+#: setup.php:109
+msgid "All"
+msgstr ""
+
+#: setup.php:110 src/Service/AlertStore.php:482
+msgid "Ticket"
+msgstr ""
+
+#: setup.php:111
+msgid "Search"
+msgstr ""
+
+#: setup.php:112 src/Service/AlertStore.php:483
+msgid "Project"
+msgstr ""
+
+#: setup.php:113 src/Service/AlertStore.php:484
+msgid "Reminder"
+msgstr ""
+
+#: setup.php:114 src/Service/AlertStore.php:485
+msgid "SLA"
+msgstr ""
+
+#: setup.php:115 src/Service/AlertStore.php:486
+msgid "Automatic action"
+msgstr ""
+
+#: setup.php:116 src/Service/AlertStore.php:487
+msgid "Other"
+msgstr ""
+
+#: setup.php:117
+msgid "Notification types"
+msgstr ""
+
+#: setup.php:118
+msgid "Loading..."
+msgstr ""
+
+#: setup.php:119
+msgid "No notifications yet"
+msgstr ""
+
+#: setup.php:120
+msgid "No notifications in this category"
+msgstr ""
+
+#: setup.php:121 src/AlertEntry.php:151
+msgid "Unread"
+msgstr ""
+
+#: setup.php:122
+msgid "Recently read"
+msgstr ""
+
+#: setup.php:123
+msgid "Notification Center"
+msgstr ""
+
+#. TRANS: %d is the number of unread notifications
+#: setup.php:125
+#, php-format
+msgid "Unread: %d"
+msgstr ""
+
+#: setup.php:126
+msgid "All caught up"
+msgstr ""
+
+#: setup.php:127
+msgid "Sound off"
+msgstr ""
+
+#: setup.php:128
+msgid "Sound on"
+msgstr ""
+
+#: setup.php:129
+msgid "Enable notification sound"
+msgstr ""
+
+#: setup.php:130
+msgid "Mute notification sound"
+msgstr ""
+
+#: setup.php:131
+msgid "Mark all as read"
+msgstr ""
+
+#: setup.php:132
+msgid "Select item"
+msgstr ""
+
+#: setup.php:133
+msgid "Actions"
+msgstr ""
+
+#: setup.php:134
+msgid "Mark as read"
+msgstr ""
+
+#: setup.php:135
+msgid "Mark as unread"
+msgstr ""
+
+#: setup.php:136
+msgid "Snooze 1 day"
+msgstr ""
+
+#: setup.php:137
+msgid "Suppress"
+msgstr ""
+
+#: setup.php:138
+msgid "Select all"
+msgstr ""
+
+#: setup.php:139
+msgid "Open list"
+msgstr ""
+
+#: setup.php:140
+msgid "Muted items"
+msgstr ""
+
+#: setup.php:141
+msgid "Notification"
+msgstr ""
+
+#. TRANS: %d is the number of further new notifications not listed in the toast
+#: setup.php:143
+#, php-format
+msgid "Further notifications: %d"
+msgstr ""
+
+#: setup.php:144
+msgid "Open notification list"
+msgstr ""
+
+#: setup.php:145
+msgid "Notifications"
+msgstr ""
+
+#: setup.php:146
+msgid "Test sound"
+msgstr ""
+
+#: setup.php:148
+msgid "Sound blocked by the browser: click anywhere on the page, or allow autoplay for this site."
+msgstr ""
+
+#: setup.php:209
+msgid "Rebuild the upcoming in-app notifications list"
+msgstr ""
+
+#: src/ScheduledEntry.php:54
+msgid "Upcoming notification"
+msgid_plural "Upcoming notifications"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/ScheduledEntry.php:105
+msgid "Notification type"
+msgstr ""
+
+#: src/ScheduledEntry.php:240
+msgid "Recipients from notification targets"
+msgstr ""
+
+#: src/Controller/NotificationController.php:82
+msgid "Unsupported action"
+msgstr ""
+
+#: src/PluginInappnotificationNotificationInappSetting.php:42
+msgid "InAppNotification in-app notifications"
+msgstr ""
+
+#: src/PluginInappnotificationNotificationInappSetting.php:48
+msgid "Enable InAppNotification in-app notifications"
+msgstr ""
+
+#: src/MutedAlertEntry.php:48
+msgid "Muted notification"
+msgid_plural "Muted notifications"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/ProfileTab.php:80
+msgid "View all users upcoming notifications"
+msgstr ""
+
+#: src/AlertEntry.php:54
+msgid "In-app notification"
+msgid_plural "In-app notifications"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/AlertEntry.php:74
+msgid "In-app notifications"
+msgstr ""
+
+#: src/AlertEntry.php:143
+msgid "Occurrences"
+msgstr ""
+
+#: src/AlertEntry.php:167
+msgid "Source"
+msgstr ""
+
+#: src/AlertEntry.php:184
+msgid "Suppressed"
+msgstr ""
+
+#: src/AlertEntry.php:192
+msgid "Snoozed until"
+msgstr ""
+
+#: src/AlertEntry.php:275 src/AlertEntry.php:285
+msgid "Reactivate"
+msgstr ""
+
+#: src/PluginInappnotificationScheduledTask.php:49
+msgid "Refresh upcoming in-app notifications"
+msgstr ""
+
+#: src/PluginInappnotificationNotificationInapp.php:64
+msgid "InAppNotification test"
+msgstr ""
+
+#: src/PluginInappnotificationNotificationInapp.php:65
+msgid "This is a test in-app notification from InAppNotification."
+msgstr ""
+
+#: src/Dashboard/CardProvider.php:44 src/Dashboard/CardProvider.php:59 src/Dashboard/CardRegistry.php:57
+msgid "Unread notifications"
+msgstr ""
+
+#: src/Dashboard/CardProvider.php:53
+msgid "Unread saved searches"
+msgstr ""
+
+#: src/Dashboard/CardProvider.php:54
+msgid "Unread tickets"
+msgstr ""
+
+#: src/Dashboard/CardProvider.php:55
+msgid "Unread projects"
+msgstr ""
+
+#: src/Dashboard/CardProvider.php:56
+msgid "Unread reminders"
+msgstr ""
+
+#: src/Dashboard/CardProvider.php:57
+msgid "Unread SLA"
+msgstr ""
+
+#: src/Dashboard/CardProvider.php:58
+msgid "Unread automatic actions"
+msgstr ""
+
+#: src/Dashboard/CardRegistry.php:62
+msgid "Unread saved search notifications"
+msgstr ""
+
+#: src/Dashboard/CardRegistry.php:67
+msgid "Unread ticket notifications"
+msgstr ""
+
+#: src/Dashboard/CardRegistry.php:72
+msgid "Unread project notifications"
+msgstr ""
+
+#: src/Dashboard/CardRegistry.php:77
+msgid "Unread reminder notifications"
+msgstr ""
+
+#: src/Dashboard/CardRegistry.php:82
+msgid "Unread SLA notifications"
+msgstr ""
+
+#: src/Dashboard/CardRegistry.php:87
+msgid "Unread automatic action notifications"
+msgstr ""
+
+#: src/Service/ScheduledNotificationStore.php:101
+msgid "Automatic resolution"
+msgstr ""
+
+#: src/Service/ScheduledNotificationStore.php:102
+msgid "Scheduled alert"
+msgstr ""
+
+#: src/Service/ScheduledNotificationStore.php:114
+#, php-format
+msgid "Reminder %s before start"
+msgstr ""
+
+#: src/Service/ScheduledNotificationStore.php:115
+msgid "Reminder at start time"
+msgstr ""
+
+#: src/Service/ScheduledNotificationStore.php:117 src/Service/ScheduledNotificationStore.php:120
+#, php-format
+msgid "Pending reason: %s"
+msgstr ""
+
+#: src/Service/ScheduledNotificationStore.php:118
+msgid "Pending reason reminder"
+msgstr ""
+
+#: src/Service/ScheduledNotificationStore.php:121
+msgid "Pending reason resolution"
+msgstr ""
+
+#: src/Service/ScheduledNotificationStore.php:123
+msgid "Threshold"
+msgstr ""
+
+#: src/Service/AlertStore.php:90
+#, php-format
+msgid "%s notification"
+msgstr ""
+
+#: src/Service/AlertStore.php:93
+#, php-format
+msgid "%s alert triggered."
+msgstr ""
+
+#: src/Service/AlertStore.php:481
+msgid "Saved search"
+msgstr ""
+
+#: src/ScheduledGlobalEntry.php:49
+msgid "Upcoming notification (all users)"
+msgid_plural "Upcoming notifications (all users)"
+msgstr[0] ""
+msgstr[1] ""

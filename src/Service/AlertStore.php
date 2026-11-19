@@ -1,25 +1,54 @@
 <?php
 
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 namespace GlpiPlugin\Inappnotification\Service;
 
+use CommonGLPI;
 use DateTime;
 use GlpiPlugin\Inappnotification\Config\Settings;
 use ITILFollowup;
 use SavedSearch_Alert;
+use Throwable;
 use Ticket;
 
 class AlertStore
 {
     public const TABLE = 'glpi_plugin_inappnotification_alerts';
+
     private const DEFAULT_SNOOZE_MINUTES = 24 * 60;
+
     private const MAX_SNOOZE_MINUTES = 365 * 24 * 60;
 
     public static function captureFromNotificationMode(array $options): bool
     {
-        if (!self::tableReady()) {
-            return false;
-        }
-
         $users_ids = self::extractUserIds($options['to'] ?? 0);
         if (count($users_ids) === 0) {
             return false;
@@ -27,7 +56,7 @@ class AlertStore
 
         $source = self::resolveCanonicalSource(
             (string) ($options['itemtype_trigger'] ?? $options['_itemtype'] ?? ''),
-            (int) ($options['items_id_trigger'] ?? $options['_items_id'] ?? 0)
+            (int) ($options['items_id_trigger'] ?? $options['_items_id'] ?? 0),
         );
         $itemtype = $source['itemtype'];
         $items_id = $source['items_id'];
@@ -50,13 +79,12 @@ class AlertStore
         $subject = trim((string) ($options['subject'] ?? ''));
         $message = trim((string) ($options['content_text'] ?? $options['content_html'] ?? ''));
         $message = self::normalizeText($message);
+
         $source_label = self::resolveSourceLabel($itemtype, $source_group);
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
         $fingerprint = self::buildModeFingerprint($itemtype, $items_id, $event, $subject);
         $payload = [
             'entities_id' => (int) ($options['_entities_id'] ?? 0),
-            'savedsearches_id' => 0,
-            'savedsearch_alerts_id' => 0,
             'alert_name' => $subject !== ''
                 ? $subject
                 : sprintf(__('%s notification', 'inappnotification'), $source_label),
@@ -65,7 +93,6 @@ class AlertStore
                 : sprintf(__('%s alert triggered.', 'inappnotification'), $source_label),
             'target_url' => self::resolveTargetUrl($itemtype, $items_id),
             'source_group' => $source_group,
-            'source_label' => $source_label,
             'source_itemtype' => $itemtype,
             'source_items_id' => $items_id,
             'last_triggered_at' => $now,
@@ -83,7 +110,7 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || !self::tableReady()) {
+        if ($users_id <= 0) {
             return [
                 'items' => [],
                 'unread_total' => 0,
@@ -114,34 +141,11 @@ class AlertStore
         ];
     }
 
-    public static function getMutedForUser(int $users_id, int $limit = 200): array
-    {
-        global $DB;
-
-        if ($users_id <= 0 || !self::tableReady() || !self::muteFieldsReady()) {
-            return [];
-        }
-
-        $items = [];
-        $iterator = $DB->request([
-            'FROM'  => self::TABLE,
-            'WHERE' => self::getMutedWhere($users_id),
-            'ORDER' => ['date_mod DESC', 'id DESC'],
-            'LIMIT' => max(1, min(500, $limit)),
-        ]);
-
-        foreach ($iterator as $row) {
-            $items[] = self::buildEntryPayload($row);
-        }
-
-        return $items;
-    }
-
     public static function getMutedTotal(int $users_id): int
     {
         global $DB;
 
-        if ($users_id <= 0 || !self::tableReady() || !self::muteFieldsReady()) {
+        if ($users_id <= 0) {
             return 0;
         }
 
@@ -158,12 +162,12 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || $id <= 0 || !self::tableReady() || !self::muteFieldsReady()) {
+        if ($users_id <= 0 || $id <= 0) {
             return;
         }
 
         $minutes = self::normalizeSnoozeMinutes($minutes);
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
         $date = new DateTime($now);
         $date->modify('+' . $minutes . ' minutes');
 
@@ -179,7 +183,7 @@ class AlertStore
             [
                 'id' => $id,
                 'users_id' => $users_id,
-            ]
+            ],
         );
     }
 
@@ -187,11 +191,11 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || $id <= 0 || !self::tableReady() || !self::muteFieldsReady()) {
+        if ($users_id <= 0 || $id <= 0) {
             return;
         }
 
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
 
         $DB->update(
             self::TABLE,
@@ -205,7 +209,7 @@ class AlertStore
             [
                 'id' => $id,
                 'users_id' => $users_id,
-            ]
+            ],
         );
     }
 
@@ -213,11 +217,11 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || $id <= 0 || !self::tableReady() || !self::muteFieldsReady()) {
+        if ($users_id <= 0 || $id <= 0) {
             return;
         }
 
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
 
         $DB->update(
             self::TABLE,
@@ -229,7 +233,7 @@ class AlertStore
             [
                 'id' => $id,
                 'users_id' => $users_id,
-            ]
+            ],
         );
     }
 
@@ -242,11 +246,11 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || !self::tableReady() || !self::muteFieldsReady()) {
+        if ($users_id <= 0) {
             return;
         }
 
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
 
         $DB->update(
             self::TABLE,
@@ -261,7 +265,7 @@ class AlertStore
                 'users_id' => $users_id,
                 'is_suppressed' => 0,
                 'snoozed_until' => ['<=', $now],
-            ]
+            ],
         );
     }
 
@@ -269,11 +273,11 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || $id <= 0 || !self::tableReady()) {
+        if ($users_id <= 0 || $id <= 0) {
             return;
         }
 
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
         $DB->update(
             self::TABLE,
             [
@@ -284,7 +288,7 @@ class AlertStore
             [
                 'id' => $id,
                 'users_id' => $users_id,
-            ]
+            ],
         );
     }
 
@@ -292,11 +296,11 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || !self::tableReady()) {
+        if ($users_id <= 0) {
             return;
         }
 
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
         $DB->update(
             self::TABLE,
             [
@@ -307,7 +311,7 @@ class AlertStore
             [
                 'users_id' => $users_id,
                 'is_read' => 0,
-            ]
+            ],
         );
     }
 
@@ -315,7 +319,7 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || $id <= 0 || !self::tableReady()) {
+        if ($users_id <= 0 || $id <= 0) {
             return;
         }
 
@@ -338,7 +342,7 @@ class AlertStore
         }
 
         $unread_count = max(1, (int) ($row['unread_count'] ?? 0));
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
 
         $DB->update(
             self::TABLE,
@@ -350,7 +354,7 @@ class AlertStore
             [
                 'id' => $id,
                 'users_id' => $users_id,
-            ]
+            ],
         );
     }
 
@@ -358,7 +362,7 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || !self::tableReady()) {
+        if ($users_id <= 0) {
             return 0;
         }
 
@@ -375,7 +379,7 @@ class AlertStore
     {
         global $DB;
 
-        if ($users_id <= 0 || $group === '' || !self::tableReady()) {
+        if ($users_id <= 0 || $group === '') {
             return 0;
         }
 
@@ -420,12 +424,12 @@ class AlertStore
                         : ((int) $existing['unread_count'] + 1),
                     'is_read' => $is_muted ? 1 : 0,
                 ],
-                ['id' => (int) $existing['id']]
+                ['id' => (int) $existing['id']],
             );
             return;
         }
 
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
         $insert = $data + [
             'users_id' => $users_id,
             'alert_fingerprint' => $fingerprint,
@@ -436,51 +440,50 @@ class AlertStore
             'date_mod' => $now,
         ];
 
-        if (self::muteFieldsReady()) {
-            $insert['is_suppressed'] = 0;
-            $insert['snoozed_until'] = null;
-        }
-
         $DB->insert(self::TABLE, $insert);
     }
 
+    /**
+     * Entry as sent to the notification bell.
+     *
+     * @return array{id:int, display_title:string, target_url:string, source_group:string,
+     *               source_label:string, occurrence_count:int, unread_count:int}
+     */
     private static function buildEntryPayload(array $row): array
     {
-        $source = self::resolveCanonicalSource(
-            (string) ($row['source_itemtype'] ?? ''),
-            (int) ($row['source_items_id'] ?? 0)
-        );
-        $source_itemtype = $source['itemtype'];
-        $source_items_id = $source['items_id'];
-        $source_group = self::resolveSourceGroup($source_itemtype);
-        $source_label = self::resolveSourceLabel($source_itemtype, $source_group);
-        $alert_name = (string) ($row['alert_name'] ?? '');
-        $target_url = self::resolveEntryTargetUrl(
-            (string) ($row['source_itemtype'] ?? ''),
-            (int) ($row['source_items_id'] ?? 0),
-            (string) ($row['target_url'] ?? '')
-        );
-        $is_suppressed = (int) ($row['is_suppressed'] ?? 0) === 1;
-        $snoozed_until = self::formatDate((string) ($row['snoozed_until'] ?? ''));
+        $source = self::resolveCanonicalSource((string) $row['source_itemtype'], (int) $row['source_items_id']);
+        $source_group = self::resolveSourceGroup($source['itemtype']);
 
         return [
             'id' => (int) $row['id'],
-            'savedsearches_id' => (int) ($row['savedsearches_id'] ?? 0),
-            'alert_name' => $alert_name,
-            'display_title' => self::resolveDisplayTitle($source_itemtype, $source_items_id, $alert_name),
-            'alert_message' => (string) ($row['alert_message'] ?? ''),
-            'target_url' => $target_url,
+            'display_title' => self::resolveDisplayTitle($source['itemtype'], $source['items_id'], (string) $row['alert_name']),
+            'target_url' => self::resolveEntryTargetUrl(
+                (string) $row['source_itemtype'],
+                (int) $row['source_items_id'],
+                (string) $row['target_url'],
+            ),
             'source_group' => $source_group,
-            'source_label' => $source_label,
-            'source_itemtype' => $source_itemtype,
-            'source_items_id' => $source_items_id,
-            'occurrence_count' => (int) ($row['occurrence_count'] ?? 0),
-            'unread_count' => (int) ($row['unread_count'] ?? 0),
-            'is_read' => (int) ($row['is_read'] ?? 0) === 1,
-            'is_suppressed' => $is_suppressed,
-            'snoozed_until' => $snoozed_until,
-            'is_muted' => $is_suppressed || self::isFutureDate($snoozed_until),
-            'last_triggered_at' => self::formatDate((string) ($row['last_triggered_at'] ?? '')),
+            'source_label' => self::resolveSourceLabel($source['itemtype'], $source_group),
+            'occurrence_count' => (int) $row['occurrence_count'],
+            'unread_count' => (int) $row['unread_count'],
+        ];
+    }
+
+    /**
+     * Translated labels of the source families (values of the `source_group` column).
+     *
+     * @return array<string, string>
+     */
+    public static function getSourceGroupLabels(): array
+    {
+        return [
+            'savedsearch' => __('Saved search', 'inappnotification'),
+            'ticket'      => __('Ticket', 'inappnotification'),
+            'project'     => __('Project', 'inappnotification'),
+            'reminder'    => __('Reminder', 'inappnotification'),
+            'sla'         => __('SLA', 'inappnotification'),
+            'crontask'    => __('Automatic action', 'inappnotification'),
+            'other'       => __('Other', 'inappnotification'),
         ];
     }
 
@@ -488,28 +491,30 @@ class AlertStore
     {
         $name = strtolower(ltrim($itemtype, '\\'));
 
-        if (
-            $itemtype === SavedSearch_Alert::class
-            || $itemtype === SavedSearch_Alert::getType()
-            || str_contains($name, 'savedsearch')
-        ) {
+        if (str_contains($name, 'savedsearch')) {
             return 'savedsearch';
         }
+
         if (self::matchesItemtype($itemtype, ITILFollowup::class)) {
             return 'ticket';
         }
+
         if (str_contains($name, 'ticket')) {
             return 'ticket';
         }
+
         if (str_contains($name, 'project')) {
             return 'project';
         }
+
         if (str_contains($name, 'reminder')) {
             return 'reminder';
         }
+
         if (str_contains($name, 'sla') || str_contains($name, 'slm')) {
             return 'sla';
         }
+
         if (str_contains($name, 'crontask') || str_contains($name, 'cron')) {
             return 'crontask';
         }
@@ -520,22 +525,14 @@ class AlertStore
     private static function resolveSourceLabel(string $itemtype, string $source_group): string
     {
         if (self::matchesItemtype($itemtype, ITILFollowup::class)) {
-            return __('Ticket');
+            return Ticket::getTypeName(1);
         }
 
-        if (class_exists($itemtype) && method_exists($itemtype, 'getTypeName')) {
-            return (string) $itemtype::getTypeName(1);
+        if (is_a($itemtype, CommonGLPI::class, true)) {
+            return $itemtype::getTypeName(1);
         }
 
-        return match ($source_group) {
-            'savedsearch' => __('Saved search', 'inappnotification'),
-            'ticket' => __('Ticket'),
-            'project' => __('Project'),
-            'reminder' => __('Reminder'),
-            'sla' => __('SLA'),
-            'crontask' => __('Scheduled task', 'inappnotification'),
-            default => __('Alert'),
-        };
+        return self::getSourceGroupLabels()[$source_group];
     }
 
     private static function resolveDisplayTitle(string $source_itemtype, int $source_items_id, string $fallback): string
@@ -551,7 +548,7 @@ class AlertStore
 
         $title = self::resolveTicketTitle($source_items_id);
         if ($title === '') {
-            $title = $fallback !== '' ? $fallback : __('Ticket');
+            $title = $fallback !== '' ? $fallback : Ticket::getTypeName(1);
         }
 
         return sprintf('%s (%d)', $title, $source_items_id);
@@ -590,7 +587,6 @@ class AlertStore
     private static function resolveCanonicalSource(string $itemtype, int $items_id): array
     {
         $itemtype = trim($itemtype);
-        $items_id = (int) $items_id;
 
         if ($itemtype === '' || $items_id <= 0) {
             return [
@@ -633,7 +629,7 @@ class AlertStore
     public static function resolveEntryTargetUrl(
         string $source_itemtype,
         int $source_items_id,
-        string $target_url = ''
+        string $target_url = '',
     ): string {
         $source_itemtype = trim($source_itemtype);
         $target_url = trim($target_url);
@@ -731,7 +727,7 @@ class AlertStore
         // Open the *executed* saved search: front/savedsearch.php?action=load redirects to the
         // search results (SavedSearch::load()), instead of the saved-search edit form.
         global $CFG_GLPI;
-        $root = (string) ($CFG_GLPI['root_doc'] ?? '');
+        $root = $CFG_GLPI['root_doc'];
         return $root . '/front/savedsearch.php?action=load&id=' . $savedsearches_id;
     }
 
@@ -764,6 +760,7 @@ class AlertStore
             if ($id > 0) {
                 $users_ids[] = $id;
             }
+
             return $users_ids;
         }
 
@@ -791,23 +788,19 @@ class AlertStore
         }
 
         $includes = array_map(
-            static fn(string $value): string => strtolower($value),
-            Settings::getCsvValues($settings, 'include_itemtypes')
+            strtolower(...),
+            Settings::getCsvValues($settings, 'include_itemtypes'),
         );
         $excludes = array_map(
-            static fn(string $value): string => strtolower($value),
-            Settings::getCsvValues($settings, 'exclude_itemtypes')
+            strtolower(...),
+            Settings::getCsvValues($settings, 'exclude_itemtypes'),
         );
 
         if ($includes !== [] && !in_array($itemtype_lc, $includes, true)) {
             return false;
         }
 
-        if (in_array($itemtype_lc, $excludes, true)) {
-            return false;
-        }
-
-        return true;
+        return !in_array($itemtype_lc, $excludes, true);
     }
 
     private static function ticketAllowedByFilters(array $settings, int $items_id): bool
@@ -829,48 +822,26 @@ class AlertStore
         return !in_array($status, [Ticket::SOLVED, Ticket::CLOSED], true);
     }
 
-    private static function tableReady(): bool
-    {
-        global $DB;
-        return $DB->tableExists(self::TABLE);
-    }
-
     private static function getVisibleWhere(int $users_id): array
     {
-        $where = [
+        return [
             'users_id' => $users_id,
-        ];
-
-        if (!self::muteFieldsReady()) {
-            return $where;
-        }
-
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
-        $where['is_suppressed'] = 0;
-        $where[] = [
-            'OR' => [
-                ['snoozed_until' => null],
-                ['snoozed_until' => ['<=', $now]],
+            'is_suppressed' => 0,
+            [
+                'OR' => [
+                    ['snoozed_until' => null],
+                    ['snoozed_until' => ['<=', $_SESSION['glpi_currenttime']]],
+                ],
             ],
         ];
-
-        return $where;
     }
 
     private static function getMutedWhere(int $users_id): array
     {
-        $where = [
+        return [
             'users_id' => $users_id,
+            self::getMutedCriteria(),
         ];
-
-        if (!self::muteFieldsReady()) {
-            $where['id'] = 0;
-            return $where;
-        }
-
-        $where[] = self::getMutedCriteria();
-
-        return $where;
     }
 
     /**
@@ -885,7 +856,7 @@ class AlertStore
     public static function getMutedCriteria(string $table = ''): array
     {
         $prefix = $table !== '' ? $table . '.' : '';
-        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+        $now = $_SESSION['glpi_currenttime'];
 
         return [
             'OR' => [
@@ -895,26 +866,8 @@ class AlertStore
         ];
     }
 
-    private static function muteFieldsReady(): bool
-    {
-        global $DB;
-
-        static $ready = null;
-        if ($ready !== null) {
-            return $ready;
-        }
-
-        $ready = $DB->fieldExists(self::TABLE, 'is_suppressed')
-            && $DB->fieldExists(self::TABLE, 'snoozed_until');
-        return $ready;
-    }
-
     private static function isRowMuted(array $row): bool
     {
-        if (!self::muteFieldsReady()) {
-            return false;
-        }
-
         if ((int) ($row['is_suppressed'] ?? 0) === 1) {
             return true;
         }
@@ -931,9 +884,9 @@ class AlertStore
 
         try {
             $date = new DateTime($value);
-            $now = new DateTime($_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s'));
+            $now = new DateTime($_SESSION['glpi_currenttime']);
             return $date > $now;
-        } catch (\Throwable $e) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -945,20 +898,6 @@ class AlertStore
         }
 
         return min(self::MAX_SNOOZE_MINUTES, $minutes);
-    }
-
-    private static function formatDate(string $value): string
-    {
-        if ($value === '') {
-            return '';
-        }
-
-        try {
-            $dt = new DateTime($value);
-            return $dt->format('Y-m-d H:i:s');
-        } catch (\Throwable $e) {
-            return $value;
-        }
     }
 
     private static function normalizeText(string $value): string

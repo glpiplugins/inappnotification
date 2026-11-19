@@ -1,5 +1,34 @@
 <?php
 
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 declare(strict_types=1);
 
 namespace GlpiPlugin\Inappnotification\Controller;
@@ -18,12 +47,12 @@ use Symfony\Component\Routing\Attribute\Route;
  * JSON endpoint of the notification bell (mounted under /plugins/inappnotification/).
  *
  * Every action only touches the logged-in user's own entries (AlertStore scopes by users_id).
- * Any logged-in user may call it, also from the simplified interface: plugin controllers default
- * to "central access", the former front/notifications.php script to "authenticated".
+ * Any logged-in user may call it, also from the simplified interface (plugin controllers default
+ * to "central access").
  */
 final class NotificationController extends AbstractController
 {
-    private const LIST_LIMIT = 15;
+    private const int LIST_LIMIT = 15;
 
     #[Route('/Notifications', name: 'notifications_list', methods: ['GET'])]
     #[SecurityStrategy(Firewall::STRATEGY_AUTHENTICATED)]
@@ -42,8 +71,8 @@ final class NotificationController extends AbstractController
     #[Route(
         '/Notifications/{action}',
         name: 'notifications_action',
-        requirements: ['action' => 'mark_read|mark_all_read|mark_unread|snooze|suppress|reactivate'],
-        methods: ['GET', 'POST']
+        requirements: ['action' => 'mark_read|mark_all_read|mark_unread|snooze|suppress'],
+        methods: ['GET', 'POST'],
     )]
     #[SecurityStrategy(Firewall::STRATEGY_AUTHENTICATED)]
     public function action(Request $request, string $action): JsonResponse
@@ -61,6 +90,7 @@ final class NotificationController extends AbstractController
                 foreach ($ids as $id) {
                     AlertStore::markAsRead($users_id, $id);
                 }
+
                 break;
             case 'mark_all_read':
                 AlertStore::markAllAsRead($users_id);
@@ -69,22 +99,20 @@ final class NotificationController extends AbstractController
                 foreach ($ids as $id) {
                     AlertStore::markAsUnread($users_id, $id);
                 }
+
                 break;
             case 'snooze':
                 $minutes = $request->request->getInt('minutes', 1440);
                 foreach ($ids as $id) {
                     AlertStore::snooze($users_id, $id, $minutes);
                 }
+
                 break;
             case 'suppress':
                 foreach ($ids as $id) {
                     AlertStore::suppress($users_id, $id);
                 }
-                break;
-            case 'reactivate':
-                foreach ($ids as $id) {
-                    AlertStore::reactivate($users_id, $id);
-                }
+
                 break;
         }
 
@@ -108,6 +136,7 @@ final class NotificationController extends AbstractController
         if (!is_array($raw)) {
             $raw = explode(',', (string) $raw);
         }
+
         if ($raw === []) {
             $raw = [$input['id'] ?? 0];
         }

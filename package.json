@@ -1,14 +1,17 @@
 {
   "name": "glpi-inappnotification-frontend",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "description": "Vue front-end (notification bell) for the GLPI InAppNotification plugin.",
+  "license": "GPL-3.0-or-later",
+  "author": "Roy Brannath",
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
     "lint": "eslint \"src/vue/**/*.{js,vue}\"",
-    "test:e2e": "tests/e2e/run.sh"
+    "test:e2e": "tests/e2e/run.sh",
+    "vue:gettext:extract": "vue-gettext-extract --config .gettext.config.js"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
@@ -16,6 +19,7 @@
     "eslint-plugin-vue": "^9.33.0",
     "playwright": "1.58.2",
     "vite": "^5.4.14",
-    "vue": "^3.5.13"
+    "vue": "^3.5.13",
+    "vue3-gettext": "^4.0.1"
   }
 }

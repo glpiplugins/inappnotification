@@ -1,22 +1,57 @@
 <?php
 
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 namespace GlpiPlugin\Inappnotification;
 
 use CommonDBTM;
+use Dropdown;
 use ExtraVisibilityCriteria;
-use GlpiPlugin\Inappnotification\Service\AlertStore;
 use Glpi\Search\DefaultSearchRequestInterface;
+use GlpiPlugin\Inappnotification\Service\AlertStore;
 use Html;
 use MassiveAction;
+use Override;
 use Session;
 
+/**
+ * The logged-in user's in-app notifications as a search itemtype (list page, menu, dashboard).
+ *
+ * No GLPI right applies: every user may view and update only their own entries (search
+ * restriction in hook.php); creating, deleting and purging through the UI is not offered.
+ */
 class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultSearchRequestInterface
 {
-    public static string $rightname = 'bookmark_public';
-
     public static function getTypeName($nb = 0): string
     {
-        return _n('Search notification', 'Search notifications', $nb, 'inappnotification');
+        return _n('In-app notification', 'In-app notifications', $nb, 'inappnotification');
     }
 
     public static function getIcon(): string
@@ -36,7 +71,7 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
 
     public static function getMenuName(): string
     {
-        return __('Search notifications', 'inappnotification');
+        return __('In-app notifications', 'inappnotification');
     }
 
     public static function getMenuContent()
@@ -59,7 +94,7 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
 
     public static function getTable($classname = null): string
     {
-        return 'glpi_plugin_inappnotification_alerts';
+        return AlertStore::TABLE;
     }
 
     public static function getVisibilityCriteria(bool $forceall = false): array
@@ -74,14 +109,10 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
 
     public function rawSearchOptions(): array
     {
-        $tab = [];
-
-        $tab[] = [
+        return [[
             'id' => 'common',
             'name' => __('Characteristics'),
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 1,
             'table' => self::getTable(),
             'field' => 'id',
@@ -89,9 +120,7 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
             'itemtype' => self::class,
             'datatype' => 'number',
             'massiveaction' => false,
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 2,
             'table' => self::getTable(),
             'field' => 'alert_name',
@@ -99,9 +128,7 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
             'datatype' => 'itemlink',
             'itemtype' => self::class,
             'massiveaction' => false,
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 3,
             'table' => self::getTable(),
             'field' => 'alert_message',
@@ -109,29 +136,23 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
             'itemtype' => self::class,
             'datatype' => 'text',
             'massiveaction' => false,
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 4,
             'table' => self::getTable(),
             'field' => 'occurrence_count',
-            'name' => __('Occurrences'),
+            'name' => __('Occurrences', 'inappnotification'),
             'itemtype' => self::class,
             'datatype' => 'number',
             'massiveaction' => false,
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 5,
             'table' => self::getTable(),
             'field' => 'unread_count',
-            'name' => __('Unread'),
+            'name' => __('Unread', 'inappnotification'),
             'itemtype' => self::class,
             'datatype' => 'number',
             'massiveaction' => false,
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 6,
             'table' => self::getTable(),
             'field' => 'last_triggered_at',
@@ -139,29 +160,24 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
             'itemtype' => self::class,
             'datatype' => 'datetime',
             'massiveaction' => false,
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 7,
             'table' => self::getTable(),
             'field' => 'source_group',
             'name' => __('Source', 'inappnotification'),
             'itemtype' => self::class,
-            'datatype' => 'string',
+            'datatype' => 'specific',
+            'searchtype' => ['equals', 'notequals'],
             'massiveaction' => false,
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 8,
             'table' => self::getTable(),
             'field' => 'source_itemtype',
-            'name' => __('Itemtype'),
+            'name' => __('Item type'),
             'itemtype' => self::class,
-            'datatype' => 'string',
+            'datatype' => 'itemtypename',
             'massiveaction' => false,
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 9,
             'table' => self::getTable(),
             'field' => 'is_suppressed',
@@ -169,9 +185,7 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
             'itemtype' => self::class,
             'datatype' => 'bool',
             'massiveaction' => false,
-        ];
-
-        $tab[] = [
+        ], [
             'id' => 10,
             'table' => self::getTable(),
             'field' => 'snoozed_until',
@@ -179,9 +193,7 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
             'itemtype' => self::class,
             'datatype' => 'datetime',
             'massiveaction' => false,
-        ];
-
-        return $tab;
+        ]];
     }
 
     /**
@@ -189,23 +201,23 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
      * search restriction in hook.php, and `entities_id` only records the source item's entity.
      * Otherwise GLPI search hides them in a sub-entity while the bell still counts them.
      */
-    #[\Override]
+    #[Override]
     public function isEntityAssign()
     {
         return false;
     }
 
-    #[\Override]
+    #[Override]
     public static function getSearchURL($full = true)
     {
         global $CFG_GLPI;
 
         // The plugin's list page (with its action buttons), not GLPI's generic list route, so the
         // search form, sorting and paging stay there.
-        return ($full ? (string) ($CFG_GLPI['root_doc'] ?? '') : '') . '/plugins/inappnotification/front/center.php';
+        return ($full ? $CFG_GLPI['root_doc'] : '') . '/plugins/inappnotification/front/center.php';
     }
 
-    #[\Override]
+    #[Override]
     public static function getDefaultSearchRequest(): array
     {
         return [
@@ -215,20 +227,45 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
         ];
     }
 
-    #[\Override]
+    #[Override]
+    public static function getSpecificValueToDisplay($field, $values, array $options = [])
+    {
+        if ($field === 'source_group') {
+            $group = is_array($values) ? (string) $values[$field] : (string) $values;
+
+            return htmlescape(AlertStore::getSourceGroupLabels()[$group] ?? $group);
+        }
+
+        return parent::getSpecificValueToDisplay($field, $values, $options);
+    }
+
+    #[Override]
+    public static function getSpecificValueToSelect($field, $name = '', $values = '', array $options = [])
+    {
+        if ($field === 'source_group') {
+            $options['display'] = false;
+            $options['value'] = is_array($values) ? ($values[$field] ?? '') : $values;
+
+            return Dropdown::showFromArray($name, AlertStore::getSourceGroupLabels(), $options);
+        }
+
+        return parent::getSpecificValueToSelect($field, $name, $values, $options);
+    }
+
+    #[Override]
     public function getName($options = [])
     {
         return (string) ($this->fields['alert_name'] ?? '');
     }
 
-    #[\Override]
+    #[Override]
     public function canUpdateItem(): bool
     {
         return (int) Session::getLoginUserID() > 0
             && (int) ($this->fields['users_id'] ?? 0) === (int) Session::getLoginUserID();
     }
 
-    #[\Override]
+    #[Override]
     public function getSpecificMassiveActions($checkitem = null): array
     {
         $actions = parent::getSpecificMassiveActions($checkitem);
@@ -241,7 +278,7 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
         return $actions;
     }
 
-    #[\Override]
+    #[Override]
     public static function showMassiveActionsSubForm(MassiveAction $ma)
     {
         if ($ma->getAction() === 'reactivate') {
@@ -252,11 +289,11 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
         return parent::showMassiveActionsSubForm($ma);
     }
 
-    #[\Override]
+    #[Override]
     public static function processMassiveActionsForOneItemtype(
         MassiveAction $ma,
         CommonDBTM $item,
-        array $ids
+        array $ids,
     ) {
         if ($ma->getAction() === 'reactivate') {
             $users_id = (int) Session::getLoginUserID();
@@ -264,31 +301,32 @@ class AlertEntry extends CommonDBTM implements ExtraVisibilityCriteria, DefaultS
             foreach ($ids as $id) {
                 $id = (int) $id;
                 if ($id <= 0) {
-                    $ma->itemDone($item::getType(), $id, MassiveAction::ACTION_KO);
+                    $ma->itemDone($item::class, $id, MassiveAction::ACTION_KO);
                     continue;
                 }
 
                 $entry = new self();
                 if (!$entry->getFromDB($id)) {
-                    $ma->itemDone($item::getType(), $id, MassiveAction::ACTION_KO);
+                    $ma->itemDone($item::class, $id, MassiveAction::ACTION_KO);
                     continue;
                 }
 
                 if ((int) ($entry->fields['users_id'] ?? 0) !== $users_id) {
-                    $ma->itemDone($item::getType(), $id, MassiveAction::ACTION_NORIGHT);
+                    $ma->itemDone($item::class, $id, MassiveAction::ACTION_NORIGHT);
                     continue;
                 }
 
                 AlertStore::reactivate($users_id, $id);
-                $ma->itemDone($item::getType(), $id, MassiveAction::ACTION_OK);
+                $ma->itemDone($item::class, $id, MassiveAction::ACTION_OK);
             }
+
             return;
         }
 
         parent::processMassiveActionsForOneItemtype($ma, $item, $ids);
     }
 
-    #[\Override]
+    #[Override]
     public function getLinkURL()
     {
         $url = (string) ($this->fields['target_url'] ?? '');

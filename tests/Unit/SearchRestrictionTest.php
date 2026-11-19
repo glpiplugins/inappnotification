@@ -1,5 +1,34 @@
 <?php
 
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 declare(strict_types=1);
 
 namespace GlpiPlugin\Inappnotification\Tests\Unit;
@@ -18,11 +47,13 @@ use PHPUnit\Framework\TestCase;
  */
 final class SearchRestrictionTest extends TestCase
 {
-    private const ALERTS = 'glpi_plugin_inappnotification_alerts';
-    private const NOW = '2026-10-22 12:00:00';
+    private const string ALERTS = 'glpi_plugin_inappnotification_alerts';
+
+    private const string NOW = '2026-10-22 12:00:00';
 
     /** @var array<string, mixed> */
     private array $savedSession = [];
+
     private mixed $savedDb = null;
 
     public static function setUpBeforeClass(): void
@@ -34,14 +65,9 @@ final class SearchRestrictionTest extends TestCase
     {
         $this->savedSession = $_SESSION ?? [];
         $this->savedDb = $GLOBALS['DB'] ?? null;
-        // Session::haveRight() asks the DB whether it is a read-only replica (GLPI 11: isSlave()).
+        // Session::haveRight() asks the DB whether it is a read-only replica.
         $GLOBALS['DB'] = new class {
             public function isReplica(): bool
-            {
-                return false;
-            }
-
-            public function isSlave(): bool
             {
                 return false;
             }
@@ -63,7 +89,7 @@ final class SearchRestrictionTest extends TestCase
     {
         self::assertSame(
             [self::ALERTS . '.users_id' => 7],
-            plugin_inappnotification_restriction_where(AlertEntry::class)
+            plugin_inappnotification_restriction_where(AlertEntry::class),
         );
     }
 
@@ -79,7 +105,7 @@ final class SearchRestrictionTest extends TestCase
                     ],
                 ],
             ],
-            plugin_inappnotification_restriction_where(MutedAlertEntry::class)
+            plugin_inappnotification_restriction_where(MutedAlertEntry::class),
         );
     }
 
@@ -87,7 +113,7 @@ final class SearchRestrictionTest extends TestCase
     {
         self::assertSame(
             ['glpi_plugin_inappnotification_scheduled.users_id' => 7],
-            plugin_inappnotification_restriction_where(ScheduledEntry::class)
+            plugin_inappnotification_restriction_where(ScheduledEntry::class),
         );
     }
 
@@ -95,7 +121,7 @@ final class SearchRestrictionTest extends TestCase
     {
         self::assertSame(
             ['glpi_plugin_inappnotification_scheduled_global.id' => 0],
-            plugin_inappnotification_restriction_where(ScheduledGlobalEntry::class)
+            plugin_inappnotification_restriction_where(ScheduledGlobalEntry::class),
         );
 
         $_SESSION['glpiactiveprofile'][Access::RIGHT_UPCOMING_ALL] = READ;
@@ -110,7 +136,7 @@ final class SearchRestrictionTest extends TestCase
         self::assertSame([self::ALERTS . '.id' => 0], plugin_inappnotification_restriction_where(MutedAlertEntry::class));
         self::assertSame(
             ['glpi_plugin_inappnotification_scheduled.id' => 0],
-            plugin_inappnotification_restriction_where(ScheduledEntry::class)
+            plugin_inappnotification_restriction_where(ScheduledEntry::class),
         );
     }
 
@@ -119,7 +145,7 @@ final class SearchRestrictionTest extends TestCase
         self::assertNull(plugin_inappnotification_restriction_where('Ticket'));
         self::assertSame(
             ['Ticket', ['glpi_tickets.is_deleted' => 0]],
-            plugin_inappnotification_add_default_where(['Ticket', ['glpi_tickets.is_deleted' => 0]])
+            plugin_inappnotification_add_default_where(['Ticket', ['glpi_tickets.is_deleted' => 0]]),
         );
     }
 
@@ -127,11 +153,11 @@ final class SearchRestrictionTest extends TestCase
     {
         self::assertSame(
             [AlertEntry::class, ['x' => 1, [self::ALERTS . '.users_id' => 7]]],
-            plugin_inappnotification_add_default_where([AlertEntry::class, ['x' => 1]])
+            plugin_inappnotification_add_default_where([AlertEntry::class, ['x' => 1]]),
         );
         self::assertSame(
             [AlertEntry::class, [self::ALERTS . '.users_id' => 7]],
-            plugin_inappnotification_add_default_where([AlertEntry::class, []])
+            plugin_inappnotification_add_default_where([AlertEntry::class, []]),
         );
     }
 
@@ -144,6 +170,14 @@ final class SearchRestrictionTest extends TestCase
         foreach ([AlertEntry::class, MutedAlertEntry::class, ScheduledEntry::class] as $itemtype) {
             self::assertFalse((new $itemtype())->isEntityAssign(), $itemtype . ' is filtered by the active entity');
         }
+    }
+
+    /**
+     * The all-users list, unlike the personal ones, is limited to the active entities.
+     */
+    public function testAllUsersUpcomingIsEntityBound(): void
+    {
+        self::assertTrue((new ScheduledGlobalEntry())->isEntityAssign());
     }
 
     /**
@@ -164,7 +198,7 @@ final class SearchRestrictionTest extends TestCase
         foreach ($itemtypes as $itemtype) {
             self::assertNotNull(
                 plugin_inappnotification_restriction_where($itemtype),
-                $itemtype . ' is not restricted to the current user in GLPI search'
+                $itemtype . ' is not restricted to the current user in GLPI search',
             );
         }
     }

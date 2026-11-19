@@ -1,5 +1,34 @@
 <?php
 
+/**
+ * -------------------------------------------------------------------------
+ * InAppNotification plugin for GLPI
+ *
+ * https://github.com/glpiplugins/inappnotification
+ *
+ * @copyright 2026 Roy Brannath
+ * @license   https://www.gnu.org/licenses/gpl-3.0.html GPL-3.0-or-later
+ * -------------------------------------------------------------------------
+ *
+ * LICENSE
+ *
+ * This file is part of InAppNotification.
+ *
+ * InAppNotification is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * InAppNotification is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with InAppNotification. If not, see <https://www.gnu.org/licenses/>.
+ * -------------------------------------------------------------------------
+ */
+
 declare(strict_types=1);
 
 namespace GlpiPlugin\Inappnotification\Tests\Unit;
@@ -55,7 +84,7 @@ final class SettingsTest extends TestCase
 
     public function testNormalizeCoercesIntsTrimsStringsAndIgnoresUnknownKeys(): void
     {
-        $out = self::call('normalize', [[
+        $out = $this->call('normalize', [[
             'capture_ticket'    => '5',     // > 0 => 1
             'capture_project'   => '0',     // => 0
             'capture_sla'       => -3,      // <= 0 => 0
@@ -75,7 +104,7 @@ final class SettingsTest extends TestCase
     /**
      * @param array<int, mixed> $args
      */
-    private static function call(string $method, array $args = []): mixed
+    private function call(string $method, array $args = []): mixed
     {
         // private methods are invokable via reflection without setAccessible() since PHP 8.1
         return (new ReflectionMethod(Settings::class, $method))->invoke(null, ...$args);

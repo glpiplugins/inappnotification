@@ -1,0 +1,6 @@
+.eslintrc.cjs
+.gettext.config.js
+.licence-header
+.php-cs-fixer.php
+Makefile
+vendor/
